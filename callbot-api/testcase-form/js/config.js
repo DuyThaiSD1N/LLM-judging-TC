@@ -4,7 +4,9 @@
 export const API_BASE_URL = window.location.origin;
 
 // Log để debug
-console.log('🔧 API Base URL:', API_BASE_URL);
+console.log('🔧 Config loaded!');
+console.log('🌐 Window location:', window.location.href);
+console.log('🔗 API Base URL:', API_BASE_URL);
 
 // Export các endpoint
 export const API_ENDPOINTS = {
@@ -13,3 +15,5 @@ export const API_ENDPOINTS = {
     UPLOAD: `${API_BASE_URL}/api/upload-excel`,
     TEMPLATE: `${API_BASE_URL}/api/template`,
 };
+
+console.log('📋 API Endpoints:', API_ENDPOINTS);

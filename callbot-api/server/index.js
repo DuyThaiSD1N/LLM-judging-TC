@@ -23,13 +23,16 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static files với MIME type đúng
+// Serve static files với MIME type đúng và no-cache cho JS
 app.use(express.static(path.join(__dirname, '../testcase-form'), {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.css')) {
             res.setHeader('Content-Type', 'text/css');
         } else if (filePath.endsWith('.js')) {
             res.setHeader('Content-Type', 'application/javascript');
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         }
     }
 }));
