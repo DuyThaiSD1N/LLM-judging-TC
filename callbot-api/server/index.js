@@ -6,7 +6,6 @@ require('dotenv').config({
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 const uploadRoute = require('./routes/upload');
 const runRoute = require('./routes/run');
