@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Callbot HCC – Testcase Manager</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+
+    <!-- ── TOP NAV ── -->
+    <nav class="topnav">
+        <div class="topnav-brand">
+            <span class="brand-icon">🤖</span>
+            <span class="brand-name">Callbot <span class="brand-sub">HCC Testcase</span></span>
+        </div>
+        <div class="topnav-actions">
+        </div>
+    </nav>
+
+    <div class="page-body">
+
+        <!-- FORM CARD -->
+        <section class="form-card">
+            <div class="form-card-header">
+                <h2 class="section-title-lg">Thêm Testcase</h2>
+                <div class="header-right">
+                    <!-- Import Excel -->
+                    <div id="upload-zone" class="upload-btn">
+                        <span>📂 Import Excel</span>
+                        <input type="file" id="file-input" accept=".xlsx,.xls" />
+                    </div>
+                    <button id="btn-template" class="upload-btn">⬇ Tải Excel mẫu</button>
+                    <span class="tc-counter">Tổng: <span id="tc-count" class="counter-num">0</span></span>
+                </div>
+            </div>
+
+            <div id="upload-status" class="upload-status"></div>
+
+            <!-- Row 1: Tên + Mã + Nhóm -->
+            <div class="form-row-3">
+                <div class="field">
+                    <label class="field-label">Tên Testcase <span class="req">*</span></label>
+                    <input id="tc-name" type="text" class="input" placeholder="VD: Hỏi thủ tục đăng ký kết hôn" />
+                </div>
+                <div class="field">
+                    <label class="field-label">Mã Testcase <span class="req">*</span></label>
+                    <input id="tc-code" type="text" class="input" placeholder="VD: TC-001" />
+                </div>
+                <div class="field">
+                    <label class="field-label">Nhóm kịch bản <span class="req">*</span></label>
+                    <!-- Custom dropdown -->
+                    <div class="group-dropdown" id="group-dropdown">
+                        <button type="button" class="group-trigger" id="group-trigger">
+                            <span id="group-selected-display">
+                                <span class="trigger-placeholder">Chọn nhóm...</span>
+                            </span>
+                            <span class="trigger-arrow">▾</span>
+                        </button>
+                        <div class="group-popup" id="group-popup">
+                            <input type="radio" name="group" id="g-A" value="A" class="group-radio" />
+                            <label for="g-A" class="group-option">
+                                <span class="group-badge badge-A">A</span>
+                                <div class="group-info">
+                                    <span class="group-title">Hỏi đầy đủ thông tin</span>
+                                    <span class="group-desc">≥ 5 câu/thủ tục — bot trả lời đúng nội dung</span>
+                                </div>
+                            </label>
+
+                            <input type="radio" name="group" id="g-B" value="B" class="group-radio" />
+                            <label for="g-B" class="group-option">
+                                <span class="group-badge badge-B">B</span>
+                                <div class="group-info">
+                                    <span class="group-title">Hỏi ngoại lệ / ngoài phạm vi</span>
+                                    <span class="group-desc">≥ 2 câu/thủ tục — bot từ chối lịch sự</span>
+                                </div>
+                            </label>
+
+                            <input type="radio" name="group" id="g-C" value="C" class="group-radio" />
+                            <label for="g-C" class="group-option">
+                                <span class="group-badge badge-C">C</span>
+                                <div class="group-info">
+                                    <span class="group-title">Hỏi chuyển topic đột ngột</span>
+                                    <span class="group-desc">≥ 2 câu/thủ tục — bot giữ ngữ cảnh</span>
+                                </div>
+                            </label>
+
+                            <input type="radio" name="group" id="g-D" value="D" class="group-radio" />
+                            <label for="g-D" class="group-option">
+                                <span class="group-badge badge-D">D</span>
+                                <div class="group-info">
+                                    <span class="group-title">Tài liệu không có trong CSDL</span>
+                                    <span class="group-desc">≥ 1 câu/thủ tục — bot không bịa</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Câu hỏi + Kỳ vọng -->
+            <div class="form-row-2">
+                <div class="field">
+                    <label class="field-label">Câu hỏi từ User <span class="req">*</span></label>
+                    <textarea id="tc-question" class="input textarea"
+                        placeholder="Mỗi dòng là 1 câu hỏi&#10;VD:&#10;đăng ký kết hôn cần giấy tờ gì&#10;lệ phí là bao nhiêu"></textarea>
+                    <span class="field-hint">Xuống dòng để thêm câu hỏi mới</span>
+                </div>
+                <div class="field">
+                    <label class="field-label">Câu trả lời kỳ vọng <span class="req">*</span></label>
+                    <textarea id="tc-expected" class="input textarea"
+                        placeholder="Mỗi dòng là kỳ vọng tương ứng&#10;VD:&#10;cần CMND, giấy xác nhận độc thân&#10;miễn phí"></textarea>
+                    <span class="field-hint">Số dòng phải khớp với số câu hỏi</span>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button id="btn-reset" class="btn btn-ghost">Làm mới</button>
+                <button id="btn-add" class="btn btn-primary">+ Thêm Testcase</button>
+            </div>
+        </section>
+
+        <!-- TABLE -->
+        <section class="table-section">
+            <div class="table-section-header">
+                <h2 class="section-title-lg">Đánh giá Testcase</h2>
+                <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả testcase</button>
+            </div>
+            <div id="table-container">
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>Chưa có testcase nào.</p>
+                    <p class="empty-sub">Thêm testcase bên trên hoặc import từ Excel.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="toast"></div>
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>
