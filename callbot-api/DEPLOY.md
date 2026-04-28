@@ -4,12 +4,16 @@
 
 ### 1. Chuẩn bị Git Repository
 
+**Quan trọng:** Đảm bảo bạn đang ở thư mục `callbot-api` (có file `package.json`)
+
 ```bash
-# Nếu chưa có git
+# Di chuyển vào thư mục callbot-api
 cd callbot-api
+
+# Khởi tạo git (nếu chưa có)
 git init
 git add .
-git commit -m "Initial commit"
+git commit -m "Initial commit for Railway"
 
 # Push lên GitHub
 git remote add origin https://github.com/your-username/your-repo.git
@@ -26,16 +30,22 @@ git push -u origin main
 3. Click **"New Project"**
 4. Chọn **"Deploy from GitHub repo"**
 5. Chọn repository của bạn
-6. Railway sẽ tự động:
-   - Detect Node.js project
-   - Cài đặt dependencies
-   - Deploy server
+6. **Quan trọng:** Nếu repo có nhiều folder, Railway sẽ hỏi root directory
+   - Chọn `callbot-api` làm root directory
+   - Hoặc để Railway tự detect (nó sẽ tìm `package.json`)
+7. Railway sẽ tự động:
+   - Detect Node.js project từ `package.json`
+   - Chạy `npm install`
+   - Chạy `npm start`
 
 #### Cách 2: Deploy bằng Railway CLI
 
 ```bash
 # Cài Railway CLI
 npm i -g @railway/cli
+
+# Di chuyển vào thư mục callbot-api
+cd callbot-api
 
 # Đăng nhập
 railway login

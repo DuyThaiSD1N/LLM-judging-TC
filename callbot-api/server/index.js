@@ -1,4 +1,5 @@
-require('dotenv').config({ path: '../.env' });
+// Load .env từ root hoặc parent directory
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
 const express = require('express');
 const cors = require('cors');
