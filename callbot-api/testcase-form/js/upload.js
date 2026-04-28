@@ -2,7 +2,7 @@
 
 import { addBulkTestcases } from './table.js';
 import { showToast } from './toast.js';
-import { API_ENDPOINTS } from './config.js';
+import { API_ENDPOINTS, API_KEY } from './config.js';
 
 export function initUpload() {
     const zone = document.getElementById('upload-zone');
@@ -42,7 +42,11 @@ async function handleFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch(API_ENDPOINTS.UPLOAD, { method: 'POST', body: formData });
+        const res = await fetch(API_ENDPOINTS.UPLOAD, {
+            method: 'POST',
+            headers: { 'X-API-Key': API_KEY },
+            body: formData
+        });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Lỗi server');

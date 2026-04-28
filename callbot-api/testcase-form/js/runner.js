@@ -2,7 +2,7 @@
 
 import { getTestcases, setTurnResult, setTcStatus, renderEval } from './table.js';
 import { showToast } from './toast.js';
-import { API_ENDPOINTS } from './config.js';
+import { API_ENDPOINTS, getAuthHeaders } from './config.js';
 
 export function initRunner() {
     document.getElementById('btn-run-all').addEventListener('click', runAll);
@@ -43,7 +43,7 @@ async function runAll() {
     try {
         const res = await fetch(API_ENDPOINTS.RUN_ALL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ testcases }),
         });
         const data = await res.json();
@@ -81,7 +81,7 @@ export async function runSingle(idx) {
     try {
         const res = await fetch(API_ENDPOINTS.RUN_SINGLE, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ code: tc.code, group: tc.group, turns: tc.turns }),
         });
         const data = await res.json();

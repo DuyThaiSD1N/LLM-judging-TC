@@ -3,6 +3,9 @@
 // Tự động detect API base URL
 export const API_BASE_URL = window.location.origin;
 
+// API Key - Hardcoded (đổi key này khi deploy production)
+export const API_KEY = 'your-secret-api-key-here-change-in-production';
+
 // Log để debug
 console.log('🔧 Config loaded!');
 console.log('🌐 Window location:', window.location.href);
@@ -14,6 +17,15 @@ export const API_ENDPOINTS = {
     RUN_SINGLE: `${API_BASE_URL}/api/run-single`,
     UPLOAD: `${API_BASE_URL}/api/upload-excel`,
     TEMPLATE: `${API_BASE_URL}/api/template`,
+    TESTCASES: `${API_BASE_URL}/api/testcases`,
 };
 
 console.log('📋 API Endpoints:', API_ENDPOINTS);
+
+// Helper function để tạo headers với API key
+export function getAuthHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
+    };
+}
