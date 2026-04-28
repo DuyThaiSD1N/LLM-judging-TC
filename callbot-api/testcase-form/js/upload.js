@@ -2,13 +2,7 @@
 
 import { addBulkTestcases } from './table.js';
 import { showToast } from './toast.js';
-
-// Tự động detect API URL (localhost hoặc production)
-const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:8099'
-    : window.location.origin;
-
-const API_URL = `${API_BASE}/api/upload-excel`;
+import { API_ENDPOINTS } from './config.js';
 
 export function initUpload() {
     const zone = document.getElementById('upload-zone');
@@ -48,7 +42,7 @@ async function handleFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch(API_URL, { method: 'POST', body: formData });
+        const res = await fetch(API_ENDPOINTS.UPLOAD, { method: 'POST', body: formData });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Lỗi server');

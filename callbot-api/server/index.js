@@ -14,24 +14,32 @@ const templateRoute = require('./routes/template');
 const app = express();
 const PORT = process.env.PORT || 8099;
 
-// CORS config cho Railway
+// CORS config
 app.use(cors({
-    origin: '*', // Cho phép mọi origin, hoặc chỉ định domain cụ thể
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
 
 app.use(express.json());
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '../testcase-form')));
+// Serve static files với MIME type đúng
+app.use(express.static(path.join(__dirname, '../testcase-form'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        } else if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
+    }
+}));
 
 // API routes
 app.use('/api', uploadRoute);
 app.use('/api', runRoute);
 app.use('/api', templateRoute);
 
-// Health check endpoint cho Railway
+// Health check endpoint cho Render
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

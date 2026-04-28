@@ -4,13 +4,11 @@ import { initForm } from './form.js';
 import { initUpload } from './upload.js';
 import { initRunner, runSingle } from './runner.js';
 import { renderEval, setRunSingleFn } from './table.js';
-
-// Tự động detect API URL (localhost hoặc production)
-const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:8099'
-    : window.location.origin;
+import { API_ENDPOINTS } from './config.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 App initialized');
+
     setRunSingleFn(runSingle);
     initForm();
     initUpload();
@@ -20,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Download Excel mẫu
     document.getElementById('btn-template').addEventListener('click', async () => {
         try {
-            const res = await fetch(`${API_BASE}/api/template`);
+            console.log('📥 Downloading template from:', API_ENDPOINTS.TEMPLATE);
+            const res = await fetch(API_ENDPOINTS.TEMPLATE);
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -29,7 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) {
-            alert('Không tải được file mẫu. Kiểm tra server đang chạy chưa.');
+            console.error('❌ Template download error:', e);
+            alert('Không tải được file mẫu: ' + e.message);
         }
     });
 });

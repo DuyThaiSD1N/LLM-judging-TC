@@ -2,14 +2,7 @@
 
 import { getTestcases, setTurnResult, setTcStatus, renderEval } from './table.js';
 import { showToast } from './toast.js';
-
-// Tự động detect API URL (localhost hoặc production)
-const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:8099'
-    : window.location.origin;
-
-const RUN_ALL_URL = `${API_BASE}/api/run-testcases`;
-const RUN_SINGLE_URL = `${API_BASE}/api/run-single`;
+import { API_ENDPOINTS } from './config.js';
 
 export function initRunner() {
     document.getElementById('btn-run-all').addEventListener('click', runAll);
@@ -48,7 +41,7 @@ async function runAll() {
     renderEval();
 
     try {
-        const res = await fetch(RUN_ALL_URL, {
+        const res = await fetch(API_ENDPOINTS.RUN_ALL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ testcases }),
@@ -86,7 +79,7 @@ export async function runSingle(idx) {
     renderEval();
 
     try {
-        const res = await fetch(RUN_SINGLE_URL, {
+        const res = await fetch(API_ENDPOINTS.RUN_SINGLE, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: tc.code, group: tc.group, turns: tc.turns }),
