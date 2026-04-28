@@ -76,7 +76,10 @@ function handleAdd() {
     const turns = questions.map((q, i) => ({ question: q, expected: expecteds[i] }));
     addTestcase({ name, code, group, turns });
     resetForm();
-    showToast(`✅ Đã thêm testcase với ${turns.length} lượt hỏi!`);
+
+    // Thông báo đẹp hơn
+    const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
+    showToast(`Đã thêm testcase "${name}" với ${turnText}`, 'success');
 }
 
 export function resetForm() {

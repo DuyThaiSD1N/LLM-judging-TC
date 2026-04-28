@@ -1,4 +1,4 @@
-// toast.js — hiển thị thông báo nhanh góc phải màn hình
+// toast.js — hiển thị thông báo popup góc phải trên màn hình
 
 export function showToast(msg, type = 'success') {
     const colors = {
@@ -6,9 +6,25 @@ export function showToast(msg, type = 'success') {
         error: '#dc2626',
         info: '#1d4ed8',
     };
+
+    const icons = {
+        success: '✓',
+        error: '✕',
+        info: 'ℹ',
+    };
+
     const t = document.getElementById('toast');
     t.textContent = msg;
     t.style.background = colors[type] ?? colors.info;
+
+    // Update icon
+    t.setAttribute('data-type', type);
+
+    // Show toast
     t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2800);
+
+    // Auto hide after 3 seconds
+    setTimeout(() => {
+        t.classList.remove('show');
+    }, 3000);
 }

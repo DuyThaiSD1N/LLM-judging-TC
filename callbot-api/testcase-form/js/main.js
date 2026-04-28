@@ -5,6 +5,11 @@ import { initUpload } from './upload.js';
 import { initRunner, runSingle } from './runner.js';
 import { renderEval, setRunSingleFn } from './table.js';
 
+// Tự động detect API URL (localhost hoặc production)
+const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:8099'
+    : window.location.origin;
+
 document.addEventListener('DOMContentLoaded', () => {
     setRunSingleFn(runSingle);
     initForm();
@@ -15,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Download Excel mẫu
     document.getElementById('btn-template').addEventListener('click', async () => {
         try {
-            const res = await fetch('http://localhost:8099/api/template');
+            const res = await fetch(`${API_BASE}/api/template`);
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');

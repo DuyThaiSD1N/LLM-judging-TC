@@ -3,8 +3,13 @@
 import { getTestcases, setTurnResult, setTcStatus, renderEval } from './table.js';
 import { showToast } from './toast.js';
 
-const RUN_ALL_URL = 'http://localhost:8099/api/run-testcases';
-const RUN_SINGLE_URL = 'http://localhost:8099/api/run-single';
+// Tự động detect API URL (localhost hoặc production)
+const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:8099'
+    : window.location.origin;
+
+const RUN_ALL_URL = `${API_BASE}/api/run-testcases`;
+const RUN_SINGLE_URL = `${API_BASE}/api/run-single`;
 
 export function initRunner() {
     document.getElementById('btn-run-all').addEventListener('click', runAll);

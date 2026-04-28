@@ -3,7 +3,12 @@
 import { addBulkTestcases } from './table.js';
 import { showToast } from './toast.js';
 
-const API_URL = 'http://localhost:8099/api/upload-excel';
+// Tự động detect API URL (localhost hoặc production)
+const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:8099'
+    : window.location.origin;
+
+const API_URL = `${API_BASE}/api/upload-excel`;
 
 export function initUpload() {
     const zone = document.getElementById('upload-zone');
