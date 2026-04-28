@@ -2,10 +2,29 @@
 
 const express = require('express');
 const router = express.Router();
-const TestcaseHistory = require('../models/TestcaseHistory');
+const mongoose = require('mongoose');
+
+// Middleware để check database connection
+function requireDB(req, res, next) {
+    if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({
+            error: 'Database not available',
+            message: 'History feature requires MongoDB. Set MONGODB_URI to enable.'
+        });
+    }
+    next();
+}
+
+// Lazy load model
+let TestcaseHistory;
+try {
+    TestcaseHistory = require('../models/TestcaseHistory');
+} catch (error) {
+    console.warn('⚠️  TestcaseHistory model not loaded');
+}
 
 // ── GET /api/history - Lấy tất cả lịch sử ───────────────────────────────
-router.get('/history', async (req, res) => {
+router.get('/history', requireDB, async (req, res) => {
     try {
         const {
             testcase_code,

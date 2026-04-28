@@ -2,8 +2,16 @@
 
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { judgeOne } = require('./judge');
-const TestcaseHistory = require('../models/TestcaseHistory');
+
+// Lazy load model
+let TestcaseHistory;
+try {
+    TestcaseHistory = require('../models/TestcaseHistory');
+} catch (error) {
+    console.warn('⚠️  TestcaseHistory model not loaded - history will not be saved');
+}
 
 const CALLBOT_URL = 'http://160.250.216.28:11005/api/v1/call/';
 
@@ -104,6 +112,12 @@ async function runTurns(tc) {
 
 // ── Lưu lịch sử sau khi chạy xong ────────────────────────────────────────
 async function saveHistory(testcase, turnResults) {
+    // Skip nếu không có database hoặc model
+    if (!TestcaseHistory || mongoose.connection.readyState !== 1) {
+        console.log(`[history] Skipped (database not available)`);
+        return;
+    }
+
     try {
         await TestcaseHistory.createFromResult(testcase, turnResults);
         console.log(`[history] Saved history for ${testcase.code}`);

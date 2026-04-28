@@ -2,23 +2,30 @@
 
 const mongoose = require('mongoose');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/callbot-testcase';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 async function connectDB() {
+    if (!MONGODB_URI) {
+        console.warn('⚠️  MONGODB_URI not set - running without database');
+        console.warn('⚠️  Data will not persist. Set MONGODB_URI to enable database.');
+        return;
+    }
+
     try {
         await mongoose.connect(MONGODB_URI);
         console.log('✅ MongoDB connected:', mongoose.connection.name);
     } catch (error) {
         console.error('❌ MongoDB connection error:', error.message);
-        // Không throw error, cho phép app chạy mà không có DB (fallback to memory)
         console.warn('⚠️  Running without database - data will not persist');
     }
 }
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed');
+    if (mongoose.connection.readyState === 1) {
+        await mongoose.connection.close();
+        console.log('MongoDB connection closed');
+    }
     process.exit(0);
 });
 

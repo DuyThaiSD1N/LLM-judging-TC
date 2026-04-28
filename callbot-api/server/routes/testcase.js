@@ -2,10 +2,29 @@
 
 const express = require('express');
 const router = express.Router();
-const Testcase = require('../models/Testcase');
+const mongoose = require('mongoose');
+
+// Middleware để check database connection
+function requireDB(req, res, next) {
+    if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({
+            error: 'Database not available',
+            message: 'MONGODB_URI not configured. Data will not persist.'
+        });
+    }
+    next();
+}
+
+// Lazy load model
+let Testcase;
+try {
+    Testcase = require('../models/Testcase');
+} catch (error) {
+    console.warn('⚠️  Testcase model not loaded');
+}
 
 // ── GET /api/testcases - Lấy tất cả testcases ────────────────────────────
-router.get('/testcases', async (req, res) => {
+router.get('/testcases', requireDB, async (req, res) => {
     try {
         const testcases = await Testcase.find().sort({ createdAt: -1 });
         res.json({ testcases });
@@ -16,7 +35,7 @@ router.get('/testcases', async (req, res) => {
 });
 
 // ── GET /api/testcases/:code - Lấy 1 testcase theo code ──────────────────
-router.get('/testcases/:code', async (req, res) => {
+router.get('/testcases/:code', requireDB, async (req, res) => {
     try {
         const testcase = await Testcase.findOne({ code: req.params.code });
         if (!testcase) {
@@ -30,7 +49,7 @@ router.get('/testcases/:code', async (req, res) => {
 });
 
 // ── POST /api/testcases - Tạo testcase mới ───────────────────────────────
-router.post('/testcases', async (req, res) => {
+router.post('/testcases', requireDB, async (req, res) => {
     try {
         const { code, name, group, turns } = req.body;
 

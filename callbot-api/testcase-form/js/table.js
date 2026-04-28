@@ -15,8 +15,14 @@ export async function loadTestcases() {
     const res = await fetch(API_ENDPOINTS.TESTCASES, {
       headers: getAuthHeaders()
     });
+
+    if (!res.ok) {
+      console.warn('⚠️  Could not load testcases from database');
+      return;
+    }
+
     const data = await res.json();
-    if (res.ok && data.testcases) {
+    if (data.testcases) {
       testcases = data.testcases.map(tc => ({
         ...tc,
         _id: tc._id,
@@ -31,8 +37,7 @@ export async function loadTestcases() {
       console.log(`✅ Loaded ${testcases.length} testcases from database`);
     }
   } catch (error) {
-    console.error('❌ Failed to load testcases:', error);
-    showToast('Không thể tải testcases từ database', 'error');
+    console.warn('⚠️  Running without database - testcases will not persist');
   }
 }
 
