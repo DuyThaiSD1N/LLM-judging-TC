@@ -1,5 +1,8 @@
-// Load .env từ root hoặc parent directory
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+// Load .env từ root hoặc callbot-api directory
+const path = require('path');
+require('dotenv').config({
+    path: path.resolve(__dirname, '../../callbot-api/.env')
+});
 
 const express = require('express');
 const cors = require('cors');
