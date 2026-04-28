@@ -36,7 +36,8 @@ async function handleFile(file) {
         return;
     }
 
-    setStatus(status, '<span class="spinner-inline"></span> Đang phân tích...', '');
+    // Hiển thị toast đang xử lý
+    showToast('Đang phân tích file Excel...', 'info');
 
     try {
         const formData = new FormData();

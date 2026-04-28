@@ -772,6 +772,14 @@ td.col-actions {
   flex-shrink: 0;
 }
 
+#toast[data-type="error"]::before {
+  content: '✕';
+}
+
+#toast[data-type="info"]::before {
+  content: 'ℹ';
+}
+
 /* ── TABLE SECTION HEADER ── */
 .table-section-header {
   display: flex;
