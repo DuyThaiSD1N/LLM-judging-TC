@@ -3,8 +3,7 @@
 import { initForm } from './form.js';
 import { initUpload } from './upload.js';
 import { initRunner, runSingle } from './runner.js';
-import { renderEval, setRunSingleFn, loadTestcases } from './table.js';
-import { initHistory } from './history.js';
+import { renderEval, setRunSingleFn } from './table.js';
 import { API_ENDPOINTS, API_KEY } from './config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -14,10 +13,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initForm();
     initUpload();
     initRunner();
-    initHistory();
-
-    // Load testcases từ database
-    await loadTestcases();
 
     renderEval();
 

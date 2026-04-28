@@ -2,16 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
 const { judgeOne } = require('./judge');
-
-// Lazy load model
-let TestcaseHistory;
-try {
-    TestcaseHistory = require('../models/TestcaseHistory');
-} catch (error) {
-    console.warn('⚠️  TestcaseHistory model not loaded - history will not be saved');
-}
 
 const CALLBOT_URL = 'http://160.250.216.28:11005/api/v1/call/';
 
@@ -110,23 +101,6 @@ async function runTurns(tc) {
     return turnResults;
 }
 
-// ── Lưu lịch sử sau khi chạy xong ────────────────────────────────────────
-async function saveHistory(testcase, turnResults) {
-    // Skip nếu không có database hoặc model
-    if (!TestcaseHistory || mongoose.connection.readyState !== 1) {
-        console.log(`[history] Skipped (database not available)`);
-        return;
-    }
-
-    try {
-        await TestcaseHistory.createFromResult(testcase, turnResults);
-        console.log(`[history] Saved history for ${testcase.code}`);
-    } catch (error) {
-        console.error(`[history] Failed to save history for ${testcase.code}:`, error.message);
-        // Không throw error, cho phép testcase chạy tiếp dù không lưu được history
-    }
-}
-
 // ── POST /api/run-testcases ───────────────────────────────────────────────
 router.post('/run-testcases', async (req, res) => {
     const { testcases } = req.body;
@@ -142,10 +116,6 @@ router.post('/run-testcases', async (req, res) => {
 
         try {
             const turnResults = await runTurns(tcNorm);
-
-            // Lưu lịch sử
-            await saveHistory(tcNorm, turnResults);
-
             results.push({ ...tcNorm, turns: turnResults, status: 'done' });
         } catch (err) {
             results.push({ ...tcNorm, status: 'error', error: err.message });
@@ -166,10 +136,6 @@ router.post('/run-single', async (req, res) => {
 
     try {
         const turnResults = await runTurns({ code, group: group ?? 'A', turns: tcTurns });
-
-        // Lưu lịch sử
-        await saveHistory({ code, name: code, group: group ?? 'A', status: 'done' }, turnResults);
-
         res.json({ turns: turnResults, status: 'done' });
     } catch (err) {
         res.status(500).json({ error: err.message });

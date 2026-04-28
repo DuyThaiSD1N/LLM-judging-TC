@@ -1,118 +1,29 @@
 // table.js — quản lý state testcases (multi-turn) và render bảng đánh giá
 
-import { API_ENDPOINTS, getAuthHeaders } from './config.js';
-import { showToast } from './toast.js';
-
 let testcases = [];
 let _runSingleFn = null;
 
 export function setRunSingleFn(fn) { _runSingleFn = fn; }
 export function getTestcases() { return testcases; }
 
-// Load testcases từ database khi khởi động
-export async function loadTestcases() {
-  try {
-    const res = await fetch(API_ENDPOINTS.TESTCASES, {
-      headers: getAuthHeaders()
-    });
-
-    if (!res.ok) {
-      console.warn('⚠️  Could not load testcases from database');
-      return;
-    }
-
-    const data = await res.json();
-    if (data.testcases) {
-      testcases = data.testcases.map(tc => ({
-        ...tc,
-        _id: tc._id,
-        code: tc.code,
-        name: tc.name,
-        group: tc.group,
-        status: tc.status || 'pending',
-        error: tc.error || '',
-        turns: tc.turns || []
-      }));
-      renderEval();
-      console.log(`✅ Loaded ${testcases.length} testcases from database`);
-    }
-  } catch (error) {
-    console.warn('⚠️  Running without database - testcases will not persist');
-  }
+export function addTestcase(tc) {
+  testcases.push(initRow(tc));
+  renderEval();
 }
 
-export async function addTestcase(tc) {
-  try {
-    const res = await fetch(API_ENDPOINTS.TESTCASES, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(tc)
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      if (res.status === 409) {
-        showToast('Mã testcase đã tồn tại', 'error');
-      } else {
-        throw new Error(data.error || 'Failed to save testcase');
-      }
-      return;
-    }
-
-    testcases.push(initRow(data.testcase));
-    renderEval();
-  } catch (error) {
-    console.error('Error saving testcase:', error);
-    showToast('Lỗi khi lưu testcase', 'error');
-  }
+export function addBulkTestcases(list) {
+  list.forEach(tc => testcases.push(initRow(tc)));
+  renderEval();
 }
 
-export async function addBulkTestcases(list) {
-  for (const tc of list) {
-    await addTestcase(tc);
-  }
+export function deleteTestcase(idx) {
+  testcases.splice(idx, 1);
+  renderEval();
 }
 
-export async function deleteTestcase(idx) {
-  const tc = testcases[idx];
-  if (!tc) return;
-
-  try {
-    const res = await fetch(`${API_ENDPOINTS.TESTCASES}/${tc.code}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-
-    if (res.ok) {
-      testcases.splice(idx, 1);
-      renderEval();
-      showToast('Đã xóa testcase', 'info');
-    } else {
-      throw new Error('Failed to delete');
-    }
-  } catch (error) {
-    console.error('Error deleting testcase:', error);
-    showToast('Lỗi khi xóa testcase', 'error');
-  }
-}
-
-export async function clearAllTestcases() {
-  try {
-    const res = await fetch(API_ENDPOINTS.TESTCASES, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-
-    if (res.ok) {
-      testcases = [];
-      renderEval();
-    } else {
-      throw new Error('Failed to clear');
-    }
-  } catch (error) {
-    console.error('Error clearing testcases:', error);
-    showToast('Lỗi khi xóa tất cả testcases', 'error');
-  }
+export function clearAllTestcases() {
+  testcases = [];
+  renderEval();
 }
 
 export function setTurnResult(tcIdx, turnIdx, fields) {
@@ -165,8 +76,9 @@ export function renderEval() {
   if (testcases.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="icon">📭</div>
-        Chưa có testcase nào. Hãy thêm testcase bên trên hoặc import từ Excel.
+        <div class="empty-icon">📭</div>
+        <p>Chưa có testcase nào.</p>
+        <p class="empty-sub">Thêm testcase bên trên hoặc import từ Excel.</p>
       </div>`;
     return;
   }

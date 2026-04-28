@@ -6,20 +6,14 @@ require('dotenv').config({
 
 const express = require('express');
 const cors = require('cors');
-const { connectDB } = require('./config/database');
 
 const uploadRoute = require('./routes/upload');
 const runRoute = require('./routes/run');
 const templateRoute = require('./routes/template');
-const testcaseRoute = require('./routes/testcase');
-const historyRoute = require('./routes/history');
 const authMiddleware = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 8099;
-
-// Connect to MongoDB
-connectDB();
 
 // CORS config
 app.use(cors({
@@ -51,8 +45,6 @@ app.use(express.static(path.join(__dirname, '../testcase-form'), {
 app.use('/api', uploadRoute);
 app.use('/api', runRoute);
 app.use('/api', templateRoute);
-app.use('/api', testcaseRoute);
-app.use('/api', historyRoute);
 
 // Health check endpoint cho Render
 app.get('/health', (req, res) => {
