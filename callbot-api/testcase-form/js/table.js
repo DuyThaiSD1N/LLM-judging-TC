@@ -21,6 +21,11 @@ export function deleteTestcase(idx) {
   renderEval();
 }
 
+export function clearAllTestcases() {
+  testcases = [];
+  renderEval();
+}
+
 export function setTurnResult(tcIdx, turnIdx, fields) {
   const tc = testcases[tcIdx];
   if (!tc || !tc.turns[turnIdx]) return;

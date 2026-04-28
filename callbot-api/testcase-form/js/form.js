@@ -50,7 +50,7 @@ function initGroupDropdown() {
 export function initForm() {
     initGroupDropdown();
     document.getElementById('btn-add').addEventListener('click', handleAdd);
-    document.getElementById('btn-reset').addEventListener('click', resetForm);
+    document.getElementById('btn-reset').addEventListener('click', handleReset);
 }
 
 function handleAdd() {
@@ -90,4 +90,15 @@ export function resetForm() {
     document.querySelectorAll('input[name="group"]').forEach(el => el.checked = false);
     document.getElementById('group-selected-display').innerHTML =
         '<span class="trigger-placeholder">Chọn nhóm...</span>';
+}
+
+function handleReset() {
+    // Import hàm clearAllTestcases từ table.js
+    import('./table.js').then(({ clearAllTestcases }) => {
+        if (confirm('Bạn có chắc muốn xóa tất cả testcase?')) {
+            clearAllTestcases();
+            resetForm();
+            showToast('Đã xóa tất cả testcase', 'info');
+        }
+    });
 }
