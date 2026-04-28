@@ -3,6 +3,12 @@
 const API_SECRET_KEY = process.env.API_SECRET_KEY;
 
 function authMiddleware(req, res, next) {
+    // TẠM THỜI TẮT AUTH - cho phép tất cả requests
+    // TODO: Bật lại khi cần bảo mật
+    console.log(`[${req.method}] ${req.path} - Auth bypassed`);
+    return next();
+
+    /* ORIGINAL AUTH CODE - uncomment để bật lại
     // Bỏ qua auth cho health check và static files
     if (req.path === '/health' || !req.path.startsWith('/api')) {
         return next();
@@ -34,6 +40,7 @@ function authMiddleware(req, res, next) {
 
     // API key hợp lệ
     next();
+    */
 }
 
 module.exports = authMiddleware;
