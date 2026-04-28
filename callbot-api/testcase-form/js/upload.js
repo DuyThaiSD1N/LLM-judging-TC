@@ -54,11 +54,11 @@ async function handleFile(file) {
         }
 
         addBulkTestcases(list);
-        setStatus(status, `✅ Đã import ${list.length} testcase.`, 'success');
-        showToast(`✅ Import thành công ${list.length} testcase!`);
+        setStatus(status, '', ''); // Xóa status text
+        showToast(`Import thành công ${list.length} testcase`);
     } catch (err) {
         setStatus(status, `❌ ${err.message}`, 'error');
-        showToast('❌ Import thất bại: ' + err.message, 'error');
+        showToast('Import thất bại: ' + err.message, 'error');
     }
 }
 

@@ -732,7 +732,7 @@ td.col-actions {
 /* ── TOAST NOTIFICATION ── */
 #toast {
   position: fixed;
-  top: 24px;
+  bottom: 24px;
   right: 24px;
   color: white;
   padding: 14px 20px;
@@ -741,7 +741,7 @@ td.col-actions {
   font-weight: 600;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
   opacity: 0;
-  transform: translateX(400px);
+  transform: translateY(100px);
   transition: all 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   pointer-events: none;
   z-index: 9999;
@@ -754,7 +754,7 @@ td.col-actions {
 
 #toast.show {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 
