@@ -888,6 +888,7 @@ td.col-actions {
 /* ── CRITERIA DROPDOWN ── */
 .criteria-dropdown {
   position: relative;
+  z-index: 10;
 }
 
 .criteria-trigger {
@@ -921,21 +922,41 @@ td.col-actions {
   top: calc(100% + 6px);
   left: 0;
   width: 100%;
-  min-width: 400px;
+  min-width: 500px;
+  max-width: 600px;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   z-index: 300;
-  padding: 6px;
+  padding: 8px;
   flex-direction: column;
-  gap: 2px;
-  max-height: 400px;
+  gap: 4px;
+  max-height: 450px;
   overflow-y: auto;
 }
 
 .criteria-popup.open {
   display: flex;
+}
+
+/* Scrollbar styling */
+.criteria-popup::-webkit-scrollbar {
+  width: 8px;
+}
+
+.criteria-popup::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.criteria-popup::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.criteria-popup::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .criteria-radio {
@@ -945,12 +966,13 @@ td.col-actions {
 .criteria-option {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: 6px;
+  padding: 14px 16px;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.12s;
   border: 1.5px solid transparent;
+  flex-shrink: 0;
 }
 
 .criteria-option:hover {
@@ -963,15 +985,15 @@ td.col-actions {
 }
 
 .criteria-name {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #1e293b;
 }
 
 .criteria-desc {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: #64748b;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 /* ── CRITERIA INFO LIST ── */

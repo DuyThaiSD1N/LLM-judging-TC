@@ -66,6 +66,11 @@ function initDropdown() {
         toggleDropdown();
     });
 
+    // Prevent closing when clicking inside popup
+    popup.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
     // Close when clicking outside
     document.addEventListener('click', (e) => {
         if (!popup.contains(e.target) && !trigger.contains(e.target)) {
