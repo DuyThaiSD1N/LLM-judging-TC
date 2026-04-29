@@ -120,7 +120,7 @@ router.post('/run-testcases', async (req, res) => {
 
             // Lưu lịch sử vào database
             try {
-                History.save(tcNorm.code, turnResults);
+                History.save(tcNorm.code, tcNorm.name, tcNorm.group, turnResults);
             } catch (dbErr) {
                 console.error('Failed to save history:', dbErr.message);
             }
@@ -148,7 +148,7 @@ router.post('/run-single', async (req, res) => {
 
         // Lưu lịch sử vào database
         try {
-            History.save(code, turnResults);
+            History.save(code, code, group ?? 'A', turnResults);
         } catch (dbErr) {
             console.error('Failed to save history:', dbErr.message);
         }

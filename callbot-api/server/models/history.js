@@ -4,14 +4,32 @@ const db = require('../config/database');
 
 class History {
     // Lưu kết quả chạy testcase
-    static save(testcaseCode, turnResults) {
-        // Tìm testcase_id từ code
-        const tc = db.prepare('SELECT id FROM testcases WHERE code = ?').get(testcaseCode);
+    static save(testcaseCode, testcaseName, testcaseGroup, turnResults) {
+        // Tìm hoặc tạo testcase
+        let tc = db.prepare('SELECT id FROM testcases WHERE code = ?').get(testcaseCode);
+
         if (!tc) {
-            console.warn(`⚠️ Testcase ${testcaseCode} not found in database`);
-            return;
+            // Tạo testcase mới nếu chưa có
+            const insertTC = db.prepare(`
+                INSERT INTO testcases (code, name, group_type)
+                VALUES (?, ?, ?)
+            `);
+            const result = insertTC.run(testcaseCode, testcaseName || testcaseCode, testcaseGroup || 'A');
+
+            // Lưu turns
+            const insertTurn = db.prepare(`
+                INSERT INTO turns (testcase_id, turn_number, question, expected)
+                VALUES (?, ?, ?, ?)
+            `);
+            turnResults.forEach((turn, index) => {
+                insertTurn.run(result.lastInsertRowid, index + 1, turn.question, turn.expected);
+            });
+
+            tc = { id: result.lastInsertRowid };
+            console.log(`✅ Created testcase ${testcaseCode} in database`);
         }
 
+        // Lưu history
         const insert = db.prepare(`
             INSERT INTO history (
                 testcase_id, turn_number, question, expected, actual, action,
