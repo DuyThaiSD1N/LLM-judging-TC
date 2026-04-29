@@ -17,6 +17,9 @@
             <span class="brand-name">LLM Judge <span class="brand-sub">Testcase</span></span>
         </div>
         <div class="topnav-actions">
+            <button id="btn-history" class="btn-history">
+                📊 Lịch sử đánh giá
+            </button>
         </div>
     </nav>
 
@@ -137,6 +140,20 @@
             </div>
         </section>
 
+    </div>
+
+    <!-- History Modal -->
+    <div id="history-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Lịch sử đánh giá</h2>
+                <button id="btn-close-history" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="history-stats" class="history-stats"></div>
+                <div id="history-list" class="history-list"></div>
+            </div>
+        </div>
     </div>
 
     <div id="toast"></div>

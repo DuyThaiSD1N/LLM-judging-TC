@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { judgeOne } = require('./judge');
+const History = require('../models/history');
 
 const CALLBOT_URL = 'http://160.250.216.28:11005/api/v1/call/';
 
@@ -116,6 +117,14 @@ router.post('/run-testcases', async (req, res) => {
 
         try {
             const turnResults = await runTurns(tcNorm);
+
+            // Lưu lịch sử vào database
+            try {
+                History.save(tcNorm.code, turnResults);
+            } catch (dbErr) {
+                console.error('Failed to save history:', dbErr.message);
+            }
+
             results.push({ ...tcNorm, turns: turnResults, status: 'done' });
         } catch (err) {
             results.push({ ...tcNorm, status: 'error', error: err.message });
@@ -136,6 +145,14 @@ router.post('/run-single', async (req, res) => {
 
     try {
         const turnResults = await runTurns({ code, group: group ?? 'A', turns: tcTurns });
+
+        // Lưu lịch sử vào database
+        try {
+            History.save(code, turnResults);
+        } catch (dbErr) {
+            console.error('Failed to save history:', dbErr.message);
+        }
+
         res.json({ turns: turnResults, status: 'done' });
     } catch (err) {
         res.status(500).json({ error: err.message });

@@ -18,6 +18,8 @@ export const API_ENDPOINTS = {
     UPLOAD: `${API_BASE_URL}/api/upload-excel`,
     TEMPLATE: `${API_BASE_URL}/api/template`,
     TESTCASES: `${API_BASE_URL}/api/testcases`,
+    HISTORY: `${API_BASE_URL}/api/history`,
+    HISTORY_STATS: `${API_BASE_URL}/api/history/stats`,
 };
 
 console.log('📋 API Endpoints:', API_ENDPOINTS);

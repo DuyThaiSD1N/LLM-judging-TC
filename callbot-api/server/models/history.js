@@ -1,0 +1,107 @@
+// models/history.js — History model để lưu kết quả chạy testcase
+
+const db = require('../config/database');
+
+class History {
+    // Lưu kết quả chạy testcase
+    static save(testcaseCode, turnResults) {
+        // Tìm testcase_id từ code
+        const tc = db.prepare('SELECT id FROM testcases WHERE code = ?').get(testcaseCode);
+        if (!tc) {
+            console.warn(`⚠️ Testcase ${testcaseCode} not found in database`);
+            return;
+        }
+
+        const insert = db.prepare(`
+            INSERT INTO history (
+                testcase_id, turn_number, question, expected, actual, action,
+                response_time_ms, verdict, error_desc, suggestion,
+                tone_note, brevity_note, time_verdict, time_note, error
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        turnResults.forEach((turn, index) => {
+            insert.run(
+                tc.id,
+                index + 1,
+                turn.question,
+                turn.expected,
+                turn.actual || null,
+                turn.action || null,
+                turn.response_time_ms || null,
+                turn.verdict || null,
+                turn.error_desc || null,
+                turn.suggestion || null,
+                turn.tone_note || null,
+                turn.brevity_note || null,
+                turn.time_verdict || null,
+                turn.time_note || null,
+                turn.error || null
+            );
+        });
+
+        console.log(`✅ Saved history for ${testcaseCode} (${turnResults.length} turns)`);
+    }
+
+    // Lấy lịch sử theo testcase code
+    static getByTestcase(testcaseCode, limit = 10) {
+        const tc = db.prepare('SELECT id FROM testcases WHERE code = ?').get(testcaseCode);
+        if (!tc) return [];
+
+        return db.prepare(`
+            SELECT * FROM history
+            WHERE testcase_id = ?
+            ORDER BY run_at DESC
+            LIMIT ?
+        `).all(tc.id, limit);
+    }
+
+    // Lấy tất cả lịch sử (gần nhất)
+    static getRecent(limit = 50) {
+        return db.prepare(`
+            SELECT 
+                h.*,
+                t.code as testcase_code,
+                t.name as testcase_name,
+                t.group_type
+            FROM history h
+            JOIN testcases t ON h.testcase_id = t.id
+            ORDER BY h.run_at DESC
+            LIMIT ?
+        `).all(limit);
+    }
+
+    // Thống kê tổng quan
+    static getStats() {
+        const total = db.prepare('SELECT COUNT(*) as count FROM history').get();
+        const passed = db.prepare("SELECT COUNT(*) as count FROM history WHERE verdict = 'PASS'").get();
+        const failed = db.prepare("SELECT COUNT(*) as count FROM history WHERE verdict = 'FAIL'").get();
+
+        const avgTime = db.prepare(`
+            SELECT AVG(response_time_ms) as avg_time 
+            FROM history 
+            WHERE response_time_ms IS NOT NULL
+        `).get();
+
+        return {
+            total_runs: total.count,
+            passed: passed.count,
+            failed: failed.count,
+            pass_rate: total.count > 0 ? ((passed.count / total.count) * 100).toFixed(1) : 0,
+            avg_response_time: avgTime.avg_time ? Math.round(avgTime.avg_time) : 0
+        };
+    }
+
+    // Xóa lịch sử cũ (giữ lại N ngày gần nhất)
+    static cleanup(daysToKeep = 30) {
+        const result = db.prepare(`
+            DELETE FROM history
+            WHERE run_at < datetime('now', '-' || ? || ' days')
+        `).run(daysToKeep);
+
+        console.log(`🗑️ Cleaned up ${result.changes} old history records`);
+        return result.changes;
+    }
+}
+
+module.exports = History;
