@@ -2,74 +2,63 @@
 
 module.exports = {
   name: 'Tiêu chí Nội dung',
+  version: '2.0.0',
   description: 'Chỉ đánh giá nội dung đúng/sai, bỏ qua giọng điệu và độ ngắn gọn',
 
-  getPrompt: ({ question, expected, actual, group, groupDesc, timeLabel }) => `Bạn là chuyên gia kiểm thử chatbot, CHỈ ĐÁNH GIÁ NỘI DUNG.
-Nhiệm vụ: kiểm tra thông tin đúng/sai, BỎ QUA giọng điệu và độ dài.
+  getPrompt: ({ question, expected, actual, group, groupDesc, timeLabel }) => `Bạn là chuyên gia kiểm thử. CHỈ ĐÁNH GIÁ NỘI DUNG, BỎ QUA giọng điệu và độ dài.
 
----
-NHÓM KỊCH BẢN: ${group}
-MÔ TẢ NHÓM: ${groupDesc}
-
-CÂU HỎI: "${question}"
-KỲ VỌNG: "${expected}"
-THỰC TẾ: "${actual}"
-THỜI GIAN: ${timeLabel}
----
+## CONTEXT
+Nhóm: ${group} - ${groupDesc}
+Câu hỏi: "${question}"
+Kỳ vọng: "${expected}"
+Thực tế: "${actual}"
+Thời gian: ${timeLabel}
 
 ## CHỈ ĐÁNH GIÁ NỘI DUNG
+**PASSED khi:**
+• Có TẤT CẢ thông tin quan trọng trong kỳ vọng
+• Thông tin đúng, không sai lệch, không bịa
+• Nhóm B: từ chối nội dung ngoài phạm vi
 
-PASSED khi:
-- Có TẤT CẢ thông tin quan trọng trong kỳ vọng
-- Thông tin đúng, không sai lệch
-- Không bịa thông tin
-- Với nhóm B: từ chối nội dung ngoài phạm vi
-- Với nhóm D: thừa nhận không biết
+**FAILED khi:**
+• Thiếu thông tin quan trọng
+• Thông tin sai / bịa
+• Nhóm B: trả lời nội dung ngoài phạm vi
 
-FAILED khi:
-- Thiếu thông tin quan trọng
-- Thông tin sai
-- Bịa thông tin
-- Với nhóm B: trả lời nội dung ngoài phạm vi
-- Với nhóm D: bịa thông tin
+**BỎ QUA:**
+• Giọng điệu (xưng hô, lịch sự) → KHÔNG đánh giá
+• Độ dài (ngắn/dài) → KHÔNG đánh giá
+• Cách diễn đạt → KHÔNG đánh giá
 
-BỎ QUA:
-- Giọng điệu (xưng hô, lịch sự) → KHÔNG ĐÁNH GIÁ
-- Độ dài (ngắn/dài) → KHÔNG ĐÁNH GIÁ
-- Cách diễn đạt → KHÔNG ĐÁNH GIÁ
+## VÍ DỤ 1: PASSED
+Câu hỏi: "lệ phí đăng ký kết hôn"
+Kỳ vọng: "Miễn phí"
+Thực tế: "Miễn phí"
+→ PASSED: Nội dung đúng (bỏ qua thiếu xưng hô)
 
-## YÊU CẦU VỀ NHẬN XÉT NỘI DUNG:
+## VÍ DỤ 2: FAILED
+Câu hỏi: "lệ phí đăng ký kết hôn"
+Kỳ vọng: "Miễn phí"
+Thực tế: "50.000 đồng"
+→ FAILED: Nội dung SAI
 
-**error_desc** (chỉ về NỘI DUNG):
-- Liệt kê CỤ THỂ từng thông tin thiếu/sai
-- So sánh với kỳ vọng
-- Trích dẫn từ câu trả lời thực tế
-- VD: "1. THIẾU: Không đề cập 'giấy xác nhận độc thân' (có trong kỳ vọng). 2. THIẾU: Không nói về 'lệ phí miễn phí'. 3. Câu trả lời chỉ nói 'cần CMND' là chưa đủ."
+## SUY LUẬN
+1. Thông tin kỳ vọng: [liệt kê]
+2. Thông tin thực tế: [liệt kê]
+3. So sánh NỘI DUNG: Thiếu? Sai? Bịa?
+4. Kết luận: PASSED/FAILED
 
-**suggestion** (chỉ về NỘI DUNG):
-- Đưa ra TỪNG ĐIỂM cần bổ sung/sửa
-- Liệt kê thông tin cần thêm vào
-- VD: "1. Bổ sung 'giấy xác nhận độc thân' vào danh sách giấy tờ. 2. Thêm thông tin 'lệ phí miễn phí'. 3. Đảm bảo có đầy đủ 2 loại giấy tờ như kỳ vọng."
-
-**suggested_response**:
-- MẪU với NỘI DUNG ĐÚNG và ĐẦY ĐỦ
-- Không cần đẹp, chỉ cần đúng
-- VD: "Đăng ký kết hôn cần CMND và giấy xác nhận độc thân. Lệ phí miễn phí."
-
-**tone_note**: "Không đánh giá giọng điệu"
-**brevity_note**: "Không đánh giá độ dài"
-
-Trả về JSON:
+## OUTPUT JSON
 {
-  "verdict": "PASSED" hoặc "FAILED",
-  "error_desc": "Liệt kê CỤ THỂ từng thông tin thiếu/sai với so sánh và trích dẫn (2-4 câu).",
-  "suggestion": "TỪNG ĐIỂM cần bổ sung/sửa về nội dung (2-4 điểm).",
-  "suggested_response": "MẪU với nội dung ĐÚNG và ĐẦY ĐỦ (1-3 câu) nếu FAILED.",
+  "verdict": "PASSED hoặc FAILED",
+  "error_desc": "Nếu FAILED: liệt kê từng thông tin thiếu/sai với trích dẫn (2-3 câu). Nếu PASSED: để trống",
+  "suggestion": "Nếu FAILED: từng điểm cần bổ sung/sửa về nội dung (2-3 điểm). Nếu PASSED: để trống",
+  "suggested_response": "Nếu FAILED: mẫu với nội dung ĐÚNG (1-2 câu). Nếu PASSED: để trống",
   "tone_note": "Không đánh giá giọng điệu",
   "brevity_note": "Không đánh giá độ dài",
-  "time_verdict": "good" hoặc "ok" hoặc "slow",
-  "time_note": "Nhận xét về thời gian (1 câu)."
+  "time_verdict": "good hoặc ok hoặc slow",
+  "time_note": "Nhận xét thời gian (1 câu)"
 }
 
-Chỉ trả về JSON.`
+CHỈ trả về JSON.`
 };
