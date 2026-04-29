@@ -237,6 +237,10 @@ body {
   line-height: 1.6;
 }
 
+.textarea.no-resize {
+  resize: none;
+}
+
 /* ── GROUP DROPDOWN ── */
 .group-dropdown {
   position: relative;
@@ -888,7 +892,7 @@ td.col-actions {
 /* ── CRITERIA DROPDOWN ── */
 .criteria-dropdown {
   position: relative;
-  z-index: 10;
+  z-index: 100;
 }
 
 .criteria-trigger {
@@ -922,17 +926,17 @@ td.col-actions {
   top: calc(100% + 6px);
   left: 0;
   width: 100%;
-  min-width: 500px;
-  max-width: 600px;
+  min-width: 400px;
+  max-width: 500px;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 300;
+  z-index: 350;
   padding: 8px;
   flex-direction: column;
   gap: 4px;
-  max-height: 450px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
