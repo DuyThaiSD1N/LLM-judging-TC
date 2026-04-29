@@ -122,9 +122,9 @@ router.post('/run-testcases', async (req, res) => {
         try {
             const turnResults = await runTurns(tcNorm);
 
-            // Lưu lịch sử vào database
+            // Lưu lịch sử vào database với criteria
             try {
-                History.save(tcNorm.code, tcNorm.name, tcNorm.group, turnResults);
+                History.save(tcNorm.code, tcNorm.name, tcNorm.group, turnResults, tcNorm.criteria || 'standard');
             } catch (dbErr) {
                 console.error('Failed to save history:', dbErr.message);
             }
@@ -155,9 +155,9 @@ router.post('/run-single', async (req, res) => {
             criteria: criteria ?? 'standard'
         });
 
-        // Lưu lịch sử vào database
+        // Lưu lịch sử vào database với criteria
         try {
-            History.save(code, code, group ?? 'A', turnResults);
+            History.save(code, code, group ?? 'A', turnResults, criteria ?? 'standard');
         } catch (dbErr) {
             console.error('Failed to save history:', dbErr.message);
         }

@@ -21,14 +21,18 @@ function parseExcel(buffer) {
 function validateExcelData(rows) {
     const errors = [];
 
+    // Lọc bỏ các dòng trống hoàn toàn
+    const filteredRows = rows.filter(row =>
+        row && row.some(cell => cell && cell.toString().trim() !== '')
+    );
+
     // Kiểm tra có dữ liệu không
-    if (!rows || rows.length === 0) {
+    if (!filteredRows || filteredRows.length === 0) {
         return { valid: false, error: 'File Excel trống hoặc không đọc được' };
     }
 
     // Kiểm tra header (row đầu tiên)
-    const header = rows[0];
-    const requiredHeaders = ['Tên Testcase', 'Mã Testcase', 'Nhóm', 'Câu hỏi', 'Câu trả lời', 'LLM Judge'];
+    const header = filteredRows[0];
 
     // Kiểm tra số cột tối thiểu (có thể có 5 hoặc 6 cột)
     if (header.length < 5) {
@@ -38,8 +42,8 @@ function validateExcelData(rows) {
         };
     }
 
-    // Kiểm tra từng dòng dữ liệu (bỏ qua header và dòng trống)
-    const dataRows = rows.slice(1).filter(row => row.some(cell => cell && cell.toString().trim()));
+    // Kiểm tra từng dòng dữ liệu (bỏ qua header)
+    const dataRows = filteredRows.slice(1);
 
     if (dataRows.length === 0) {
         return { valid: false, error: 'File Excel không có dữ liệu testcase nào' };
@@ -72,7 +76,7 @@ function validateExcelData(rows) {
             errors.push(`Dòng ${rowNum}: Thiếu "Câu trả lời kỳ vọng"`);
         }
 
-        // Kiểm tra LLM Judge (nếu có cột này)
+        // Kiểm tra LLM Judge (nếu có cột này và có giá trị)
         if (header.length >= 6 && criteria && criteria.toString().trim() !== '') {
             const criteriaValue = criteria.toString().trim().toLowerCase();
             if (!validCriteria.includes(criteriaValue)) {
@@ -88,7 +92,7 @@ function validateExcelData(rows) {
         };
     }
 
-    return { valid: true };
+    return { valid: true, filteredRows };
 }
 
 // ── Gọi OpenAI để map dữ liệu Excel → testcase ────────────────────────────
@@ -150,13 +154,14 @@ router.post('/upload-excel', upload.single('file'), async (req, res) => {
 
         const rows = parseExcel(req.file.buffer);
 
-        // Validate dữ liệu trước khi xử lý
+        // Validate dữ liệu trước khi xử lý (đã lọc bỏ dòng trống)
         const validation = validateExcelData(rows);
         if (!validation.valid) {
             return res.status(400).json({ error: validation.error });
         }
 
-        const testcases = await mapWithAI(rows);
+        // Sử dụng dữ liệu đã được lọc
+        const testcases = await mapWithAI(validation.filteredRows);
 
         res.json({ testcases });
     } catch (err) {

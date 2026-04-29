@@ -88,13 +88,24 @@ export function renderEval() {
   const rows = testcases.map((tc, i) => {
     const turnCount = tc.turns.length;
 
+    // Map criteria ID to display name
+    const criteriaNames = {
+      'standard': 'Chuẩn',
+      'strict': 'Nghiêm ngặt',
+      'flexible': 'Linh hoạt',
+      'content-only': 'Nội dung',
+      'ux-focused': 'Trải nghiệm'
+    };
+    const criteriaDisplay = criteriaNames[tc.criteria] || tc.criteria;
+
     return tc.turns.map((turn, j) => {
       const isFirst = j === 0;
       const tcCells = isFirst ? `
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
         <td class="col-name" rowspan="${turnCount}">${tc.name}</td>
-        <td rowspan="${turnCount}"><span class="tag tag-${tc.group}">${tc.group}</span></td>` : '';
+        <td rowspan="${turnCount}"><span class="tag tag-${tc.group}">${tc.group}</span></td>
+        <td class="col-criteria" rowspan="${turnCount}"><span class="criteria-badge">${criteriaDisplay}</span></td>` : '';
 
       const actionCell = isFirst ? `
         <td class="col-actions" rowspan="${turnCount}">
@@ -127,6 +138,7 @@ export function renderEval() {
             <th>Mã TC</th>
             <th>Tên Testcase</th>
             <th>Nhóm</th>
+            <th>LLM Judge</th>
             <th>Lượt</th>
             <th>Câu hỏi từ User</th>
             <th>Câu trả lời kỳ vọng</th>

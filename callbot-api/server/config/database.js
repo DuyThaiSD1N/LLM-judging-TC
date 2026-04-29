@@ -60,11 +60,34 @@ db.exec(`
     brevity_note TEXT,
     time_verdict TEXT,
     time_note TEXT,
+    criteria TEXT DEFAULT 'standard',
     error TEXT,
     run_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (testcase_id) REFERENCES testcases(id) ON DELETE CASCADE
   )
 `);
+
+// Thêm cột suggested_response nếu chưa có (migration cho database cũ)
+try {
+  db.exec(`ALTER TABLE history ADD COLUMN suggested_response TEXT`);
+  console.log('✅ Added suggested_response column to history table');
+} catch (err) {
+  // Cột đã tồn tại, bỏ qua
+  if (!err.message.includes('duplicate column name')) {
+    console.warn('⚠️ Migration warning:', err.message);
+  }
+}
+
+// Thêm cột criteria nếu chưa có (migration cho database cũ)
+try {
+  db.exec(`ALTER TABLE history ADD COLUMN criteria TEXT DEFAULT 'standard'`);
+  console.log('✅ Added criteria column to history table');
+} catch (err) {
+  // Cột đã tồn tại, bỏ qua
+  if (!err.message.includes('duplicate column name')) {
+    console.warn('⚠️ Migration warning:', err.message);
+  }
+}
 
 // Tạo index cho tìm kiếm nhanh
 db.exec(`

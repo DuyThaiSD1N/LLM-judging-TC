@@ -3,8 +3,8 @@
 const db = require('../config/database');
 
 class History {
-    // Lưu kết quả chạy testcase
-    static save(testcaseCode, testcaseName, testcaseGroup, turnResults) {
+    // Lưu lịch sử theo testcase với criteria
+    static save(testcaseCode, testcaseName, testcaseGroup, turnResults, criteria = 'standard') {
         // Tìm hoặc tạo testcase
         let tc = db.prepare('SELECT id FROM testcases WHERE code = ?').get(testcaseCode);
 
@@ -29,13 +29,13 @@ class History {
             console.log(`✅ Created testcase ${testcaseCode} in database`);
         }
 
-        // Lưu history
+        // Lưu history với criteria
         const insert = db.prepare(`
             INSERT INTO history (
                 testcase_id, turn_number, question, expected, actual, action,
                 response_time_ms, verdict, error_desc, suggestion, suggested_response,
-                tone_note, brevity_note, time_verdict, time_note, error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                tone_note, brevity_note, time_verdict, time_note, criteria, error
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         turnResults.forEach((turn, index) => {
@@ -55,11 +55,12 @@ class History {
                 turn.brevity_note || null,
                 turn.time_verdict || null,
                 turn.time_note || null,
+                criteria,
                 turn.error || null
             );
         });
 
-        console.log(`✅ Saved history for ${testcaseCode} (${turnResults.length} turns)`);
+        console.log(`✅ Saved history for ${testcaseCode} (${turnResults.length} turns) with criteria: ${criteria}`);
     }
 
     // Lấy lịch sử theo testcase code
