@@ -102,10 +102,9 @@ async function loadHistory() {
                 <div class="history-meta">
                     <span>Nhóm: <strong>${run.group_type}</strong></span>
                     <span>Lượt: <strong>${run.turns}</strong></span>
+                    <span style="color:#16a34a;">✓ Đạt: <strong>${run.passed}</strong></span>
+                    <span style="color:#dc2626;">✕ Không đạt: <strong>${run.failed}</strong></span>
                     <span>Thời gian TB: <strong>${run.avg_time}ms</strong></span>
-                    <span class="history-result ${run.all_passed ? 'passed' : 'failed'}">
-                        ${run.all_passed ? '✓ PASS' : '✕ FAIL'}
-                    </span>
                 </div>
                 <div class="history-details">
                     ${run.details.map((turn, i) => `
@@ -195,6 +194,7 @@ function groupHistoryByRun(history) {
         runs.push({
             ...run,
             all_passed: run.passed === run.turns,
+            failed: run.turns - run.passed,
             avg_time: run.turns > 0 ? Math.round(run.total_time / run.turns) : 0
         });
     });

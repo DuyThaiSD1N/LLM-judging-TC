@@ -2,6 +2,30 @@
 
 const OpenAI = require('openai');
 
+// Import các prompt tiêu chí
+const standardPrompt = require('../prompts/standard');
+const strictPrompt = require('../prompts/strict');
+const flexiblePrompt = require('../prompts/flexible');
+const contentOnlyPrompt = require('../prompts/content-only');
+const uxFocusedPrompt = require('../prompts/ux-focused');
+
+const CRITERIA_MAP = {
+    standard: standardPrompt,
+    strict: strictPrompt,
+    flexible: flexiblePrompt,
+    'content-only': contentOnlyPrompt,
+    'ux-focused': uxFocusedPrompt,
+};
+
+// Export danh sách tiêu chí để frontend sử dụng
+const CRITERIA_LIST = [
+    { id: 'standard', name: 'Tiêu chí Chuẩn', description: 'Đánh giá cân bằng: nội dung đúng đủ, giọng điệu tự nhiên, ngắn gọn, thời gian hợp lý' },
+    { id: 'strict', name: 'Tiêu chí Nghiêm ngặt', description: 'Đánh giá nghiêm ngặt: yêu cầu 100% thông tin, giọng điệu hoàn hảo, thời gian < 2s' },
+    { id: 'flexible', name: 'Tiêu chí Linh hoạt', description: 'Đánh giá linh hoạt: chấp nhận thiếu thông tin phụ, giọng điệu OK, thời gian < 5s' },
+    { id: 'content-only', name: 'Tiêu chí Nội dung', description: 'Chỉ đánh giá nội dung đúng/sai, bỏ qua giọng điệu và độ ngắn gọn' },
+    { id: 'ux-focused', name: 'Tiêu chí Trải nghiệm', description: 'Tập trung vào giọng điệu, độ ngắn gọn, thời gian. Nội dung chỉ cần đủ 70%' },
+];
+
 let _openai = null;
 function getOpenAI() {
     if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -51,6 +75,7 @@ function classifyTime(ms) {
  * Đánh giá nội dung + thời gian phản hồi
  * Trả về null nếu là câu chào mở đầu
  *
+ * @param {string} criteria - Tiêu chí đánh giá: standard, strict, flexible, content-only, ux-focused
  * @returns {{
  *   verdict: 'PASSED'|'FAILED',
  *   error_desc: string,
@@ -62,73 +87,24 @@ function classifyTime(ms) {
  *   time_note: string
  * } | null}
  */
-async function judgeOne({ question, expected, actual, group, responseTimeMs }) {
+async function judgeOne({ question, expected, actual, group, responseTimeMs, criteria = 'standard' }) {
     if (isGreetingResponse(actual)) return null;
 
     const timeInfo = classifyTime(responseTimeMs ?? 0);
     const timeLabel = `${responseTimeMs}ms (${timeInfo.label})`;
 
-    const prompt = `Bạn là chuyên gia kiểm thử chatbot hành chính công.
-Nhiệm vụ: đánh giá toàn diện câu trả lời của chatbot theo 3 tiêu chí.
+    // Lấy prompt theo tiêu chí
+    const promptConfig = CRITERIA_MAP[criteria] || CRITERIA_MAP.standard;
+    const groupDesc = GROUP_DESC[group] ?? '';
 
----
-NHÓM KỊCH BẢN: ${group}
-MÔ TẢ NHÓM: ${GROUP_DESC[group] ?? ''}
-
-CÂU HỎI CỦA USER:
-"${question}"
-
-CÂU TRẢ LỜI KỲ VỌNG (nội dung cốt lõi cần có):
-"${expected}"
-
-CÂU TRẢ LỜI THỰC TẾ CỦA CHATBOT:
-"${actual}"
-
-THỜI GIAN PHẢN HỒI: ${timeLabel}
----
-
-## TIÊU CHÍ 1 — NỘI DUNG (PASSED/FAILED)
-
-PASSED khi:
-- Câu trả lời truyền đạt đúng và đủ thông tin cốt lõi so với kỳ vọng (không cần giống từng chữ)
-- Với nhóm B: bot từ chối nội dung ngoài phạm vi VÀ chuyển hướng về hành chính công → PASSED
-
-FAILED khi:
-- Thiếu thông tin quan trọng mà kỳ vọng có
-- Cung cấp thông tin sai lệch hoặc mâu thuẫn với kỳ vọng
-- Bịa thông tin không có cơ sở — áp dụng cho TẤT CẢ nhóm, không chỉ B và D
-- Với nhóm B: bot trả lời nội dung ngoài phạm vi thay vì từ chối → FAILED
-- Với nhóm D: bot bịa thông tin thay vì hướng dẫn đến văn phòng 1 cửa → FAILED
-
-## TIÊU CHÍ 2 — ĐỘ TỰ NHIÊN & GIỌNG ĐIỆU (dành cho voicebot)
-Đánh giá xem câu trả lời có phù hợp để đọc thành tiếng không:
-- Xưng hô lịch sự, đúng mực (anh/chị, dạ vâng...)
-- Không cộc lốc, không quá máy móc
-- Câu văn tự nhiên khi nghe, không vấp
-
-## TIÊU CHÍ 3 — ĐỘ NGẮN GỌN & SÚC TÍCH (quan trọng với voicebot)
-Đánh giá xem câu trả lời có quá dài không:
-- Trả lời đúng trọng tâm, không lan man
-- Không lặp lại thông tin không cần thiết
-- Người dùng nghe xong không bị mất tập trung
-
-## ĐÁNH GIÁ THỜI GIAN PHẢN HỒI:
-- Nhận xét ngắn gọn về thời gian phản hồi ${timeLabel}
-- Nếu chậm (> 3s): nêu ảnh hưởng đến trải nghiệm người dùng
-
-Trả về JSON với đúng 8 trường:
-{
-  "verdict": "PASSED" hoặc "FAILED",
-  "error_desc": "Mô tả cụ thể lỗi nội dung nếu FAILED. Để trống nếu PASSED.",
-  "suggestion": "Đề xuất cụ thể để cải thiện nếu FAILED. Để trống nếu PASSED.",
-  "suggested_response": "MẪU CÂU TRẢ LỜI ĐỀ XUẤT hoàn chỉnh để người dùng tham khảo và sửa nếu FAILED. Viết câu trả lời mẫu đầy đủ, tự nhiên, phù hợp với voicebot. Để trống nếu PASSED.",
-  "tone_note": "Nhận xét 1 câu về độ tự nhiên và giọng điệu (tốt/cần cải thiện điểm gì).",
-  "brevity_note": "Nhận xét 1 câu về độ ngắn gọn (súc tích/hơi dài/quá dài và lý do).",
-  "time_verdict": "good" hoặc "ok" hoặc "slow",
-  "time_note": "Nhận xét ngắn về tốc độ phản hồi (1 câu)."
-}
-
-Chỉ trả về JSON, không giải thích thêm.`;
+    const prompt = promptConfig.getPrompt({
+        question,
+        expected,
+        actual,
+        group,
+        groupDesc,
+        timeLabel
+    });
 
     const response = await getOpenAI().chat.completions.create({
         model: 'gpt-4o-mini',
@@ -151,4 +127,4 @@ Chỉ trả về JSON, không giải thích thêm.`;
     };
 }
 
-module.exports = { judgeOne };
+module.exports = { judgeOne, CRITERIA_LIST };

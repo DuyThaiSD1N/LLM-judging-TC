@@ -58,7 +58,9 @@ async function handleFile(file) {
             return;
         }
 
-        addBulkTestcases(list);
+        // Thêm criteria mặc định cho testcases từ Excel
+        const listWithCriteria = list.map(tc => ({ ...tc, criteria: 'standard' }));
+        addBulkTestcases(listWithCriteria);
         setStatus(status, '', ''); // Xóa status text
         showToast(`Import thành công ${list.length} testcase`);
     } catch (err) {

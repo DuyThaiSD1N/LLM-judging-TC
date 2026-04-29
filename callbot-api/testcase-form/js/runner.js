@@ -82,7 +82,12 @@ export async function runSingle(idx) {
         const res = await fetch(API_ENDPOINTS.RUN_SINGLE, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ code: tc.code, group: tc.group, turns: tc.turns }),
+            body: JSON.stringify({
+                code: tc.code,
+                group: tc.group,
+                turns: tc.turns,
+                criteria: tc.criteria || 'standard'
+            }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Lỗi server');

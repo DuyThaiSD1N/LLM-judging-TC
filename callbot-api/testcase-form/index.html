@@ -119,6 +119,29 @@
                 </div>
             </div>
 
+            <!-- Row 3: Tiêu chí LLM Judge -->
+            <div class="form-row-1">
+                <div class="field">
+                    <label class="field-label">
+                        Tiêu chí LLM đánh giá
+                        <button type="button" id="btn-criteria-info" class="btn-info"
+                            title="Xem chi tiết các tiêu chí">ℹ</button>
+                    </label>
+                    <!-- Custom dropdown -->
+                    <div class="criteria-dropdown" id="criteria-dropdown">
+                        <button type="button" class="criteria-trigger" id="criteria-trigger">
+                            <span id="criteria-selected-display">
+                                <span class="trigger-placeholder">Tiêu chí Chuẩn</span>
+                            </span>
+                            <span class="trigger-arrow">▾</span>
+                        </button>
+                        <div class="criteria-popup" id="criteria-popup">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button id="btn-reset" class="btn btn-ghost">Làm mới</button>
                 <button id="btn-add" class="btn btn-primary">+ Thêm Testcase</button>
@@ -140,6 +163,19 @@
             </div>
         </section>
 
+    </div>
+
+    <!-- Criteria Info Modal -->
+    <div id="criteria-modal" class="modal">
+        <div class="modal-content" style="max-width:900px;">
+            <div class="modal-header">
+                <h2>📋 Các tiêu chí LLM đánh giá</h2>
+                <button id="btn-close-criteria" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="criteria-info-list" class="criteria-info-list"></div>
+            </div>
+        </div>
     </div>
 
     <!-- History Modal -->

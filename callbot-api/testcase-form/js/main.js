@@ -5,6 +5,7 @@ import { initUpload } from './upload.js';
 import { initRunner, runSingle } from './runner.js';
 import { renderEval, setRunSingleFn } from './table.js';
 import { initHistory } from './history.js';
+import { initCriteria } from './criteria.js';
 import { API_ENDPOINTS, API_KEY } from './config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initUpload();
     initRunner();
     initHistory();
+    initCriteria();
 
     renderEval();
 

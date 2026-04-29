@@ -49,6 +49,7 @@ function initRow(tc) {
     code: tc.code,
     name: tc.name,
     group: tc.group,
+    criteria: tc.criteria || 'standard',
     status: 'pending',
     error: '',
     turns: turns.map(t => ({

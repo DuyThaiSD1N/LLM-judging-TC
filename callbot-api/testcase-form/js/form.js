@@ -2,6 +2,7 @@
 
 import { addTestcase } from './table.js';
 import { showToast } from './toast.js';
+import { getSelectedCriteria } from './criteria.js';
 
 const GROUP_META = {
     A: { label: 'Hỏi đầy đủ thông tin', color: '#2563eb' },
@@ -74,7 +75,8 @@ function handleAdd() {
     }
 
     const turns = questions.map((q, i) => ({ question: q, expected: expecteds[i] }));
-    addTestcase({ name, code, group, turns });
+    const criteria = getSelectedCriteria();
+    addTestcase({ name, code, group, turns, criteria });
     resetForm();
 
     // Thông báo đẹp hơn

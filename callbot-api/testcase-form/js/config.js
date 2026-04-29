@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
     TESTCASES: `${API_BASE_URL}/api/testcases`,
     HISTORY: `${API_BASE_URL}/api/history`,
     HISTORY_STATS: `${API_BASE_URL}/api/history/stats`,
+    CRITERIA: `${API_BASE_URL}/api/criteria`,
 };
 
 console.log('📋 API Endpoints:', API_ENDPOINTS);

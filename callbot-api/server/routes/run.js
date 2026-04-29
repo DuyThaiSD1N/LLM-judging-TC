@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { judgeOne } = require('./judge');
+const { judgeOne, CRITERIA_LIST } = require('./judge');
 const History = require('../models/history');
 
 const CALLBOT_URL = 'http://160.250.216.28:11005/api/v1/call/';
@@ -44,6 +44,7 @@ async function runTurns(tc) {
     }
 
     const turnResults = [];
+    const criteria = tc.criteria || 'standard';
 
     for (let j = 0; j < tc.turns.length; j++) {
         const turn = tc.turns[j];
@@ -77,6 +78,7 @@ async function runTurns(tc) {
                 actual: answer,
                 group: tc.group,
                 responseTimeMs, // Truyền thời gian phản hồi của câu hỏi này
+                criteria, // Truyền tiêu chí đánh giá
             });
 
             if (judge) {
@@ -138,7 +140,7 @@ router.post('/run-testcases', async (req, res) => {
 
 // ── POST /api/run-single ──────────────────────────────────────────────────
 router.post('/run-single', async (req, res) => {
-    const { code, group, turns, question, expected } = req.body;
+    const { code, group, turns, question, expected, criteria } = req.body;
 
     // Hỗ trợ cả format cũ và mới
     const tcTurns = turns ?? [{ question, expected }];
@@ -146,7 +148,12 @@ router.post('/run-single', async (req, res) => {
         return res.status(400).json({ error: 'Thiếu câu hỏi.' });
 
     try {
-        const turnResults = await runTurns({ code, group: group ?? 'A', turns: tcTurns });
+        const turnResults = await runTurns({
+            code,
+            group: group ?? 'A',
+            turns: tcTurns,
+            criteria: criteria ?? 'standard'
+        });
 
         // Lưu lịch sử vào database
         try {
@@ -159,6 +166,11 @@ router.post('/run-single', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// ── GET /api/criteria ─────────────────────────────────────────────────────
+router.get('/criteria', (req, res) => {
+    res.json({ criteria: CRITERIA_LIST });
 });
 
 module.exports = router;
