@@ -33,6 +33,7 @@ async function handleFile(file) {
 
     if (!['xlsx', 'xls'].includes(ext)) {
         setStatus(status, '❌ Chỉ chấp nhận .xlsx hoặc .xls', 'error');
+        showToast('Chỉ chấp nhận file .xlsx hoặc .xls', 'error');
         return;
     }
 
@@ -50,21 +51,32 @@ async function handleFile(file) {
         });
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.error || 'Lỗi server');
-
-        const list = data.testcases ?? [];
-        if (list.length === 0) {
-            setStatus(status, '⚠️ Không trích xuất được testcase nào.', 'error');
+        if (!res.ok) {
+            // Hiển thị lỗi validation chi tiết
+            const errorMsg = data.error || 'Lỗi server';
+            setStatus(status, '', '');
+            showToast(errorMsg, 'error');
             return;
         }
 
-        // Thêm criteria mặc định cho testcases từ Excel
-        const listWithCriteria = list.map(tc => ({ ...tc, criteria: 'standard' }));
+        const list = data.testcases ?? [];
+        if (list.length === 0) {
+            setStatus(status, '', '');
+            showToast('Không trích xuất được testcase nào từ file Excel', 'error');
+            return;
+        }
+
+        // Thêm criteria mặc định nếu không có
+        const listWithCriteria = list.map(tc => ({
+            ...tc,
+            criteria: tc.criteria || 'standard'
+        }));
+
         addBulkTestcases(listWithCriteria);
         setStatus(status, '', ''); // Xóa status text
         showToast(`Import thành công ${list.length} testcase`);
     } catch (err) {
-        setStatus(status, `❌ ${err.message}`, 'error');
+        setStatus(status, '', '');
         showToast('Import thất bại: ' + err.message, 'error');
     }
 }
