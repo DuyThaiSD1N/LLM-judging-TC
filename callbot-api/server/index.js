@@ -6,7 +6,6 @@ require('dotenv').config({
 
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
 
 // Initialize database
 require('./config/database');
@@ -20,13 +19,6 @@ const authMiddleware = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 8099;
-
-// Tạo thư mục data nếu chưa có
-const dataDir = path.join(__dirname, '../data');
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-    console.log('📁 Created data directory');
-}
 
 // CORS config
 app.use(cors({
