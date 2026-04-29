@@ -898,6 +898,106 @@ td.col-actions {
   margin-bottom: 14px;
 }
 
+/* ── FILTER SECTION ── */
+.filter-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-search {
+  position: relative;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 9px 13px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1e293b;
+  background: white;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filter-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-select {
+  width: 100%;
+  padding: 9px 13px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #1e293b;
+  background: white;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filter-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-clear-filter {
+  padding: 9px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  position: relative;
+}
+
+.btn-clear-filter:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.filter-badge {
+  display: none;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.filter-info {
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
 .tone-text {
   color: #7c3aed;
   margin-top: 4px;
@@ -922,13 +1022,14 @@ td.col-actions {
   border: 1.5px solid #e2e8f0;
   border-radius: 8px;
   padding: 9px 13px;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   background: #f8fafc;
   cursor: pointer;
   font-family: inherit;
   color: #1e293b;
   transition: border-color 0.15s, box-shadow 0.15s;
   text-align: left;
+  min-height: 38px;
 }
 
 .criteria-trigger:focus,
@@ -944,7 +1045,7 @@ td.col-actions {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  width: 500px;
+  width: 100%;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -987,8 +1088,8 @@ td.col-actions {
 .criteria-option {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: 4px;
+  padding: 12px 14px;
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.12s;
@@ -1006,13 +1107,13 @@ td.col-actions {
 }
 
 .criteria-name {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #1e293b;
 }
 
 .criteria-desc {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #64748b;
   line-height: 1.5;
 }

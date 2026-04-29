@@ -1,7 +1,7 @@
 // routes/template.js — xuất file Excel mẫu để nhập testcase
 
 const express = require('express');
-const XLSX = require('xlsx');
+const XLSX = require('xlsx-js-style');
 const router = express.Router();
 
 router.get('/template', (req, res) => {
@@ -34,27 +34,41 @@ router.get('/template', (req, res) => {
         { wch: 50 }
     ];
 
-    // Highlight dòng header (row 1) — nền vàng, chữ đậm
+    // Style cho dòng header (row 1) — nền vàng, chữ đậm
     const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1'];
     headerCells.forEach(ref => {
         if (!ws[ref]) return;
         ws[ref].s = {
-            fill: { patternType: 'solid', fgColor: { rgb: 'FFEB3B' } },
-            font: { bold: true, sz: 11, color: { rgb: '000000' } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            fill: {
+                patternType: 'solid',
+                fgColor: { rgb: 'FFFF00' }  // Màu vàng
+            },
+            font: {
+                bold: true,
+                sz: 11,
+                color: { rgb: '000000' }
+            },
+            alignment: {
+                horizontal: 'center',
+                vertical: 'center',
+                wrapText: true
+            },
             border: {
                 top: { style: 'thin', color: { rgb: '000000' } },
                 bottom: { style: 'thin', color: { rgb: '000000' } },
                 left: { style: 'thin', color: { rgb: '000000' } },
                 right: { style: 'thin', color: { rgb: '000000' } }
-            },
+            }
         };
     });
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Testcases');
 
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx', cellStyles: true });
+    const buf = XLSX.write(wb, {
+        type: 'buffer',
+        bookType: 'xlsx'
+    });
 
     res.setHeader('Content-Disposition', 'attachment; filename="testcase_mau.xlsx"');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

@@ -1,5 +1,7 @@
 // table.js — quản lý state testcases (multi-turn) và render bảng đánh giá
 
+import { filterTestcases } from './filter.js';
+
 let testcases = [];
 let _runSingleFn = null;
 
@@ -75,17 +77,38 @@ export function renderEval() {
   document.getElementById('tc-count').textContent = testcases.length;
   const container = document.getElementById('table-container');
 
-  if (testcases.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📭</div>
-        <p>Chưa có testcase nào.</p>
-        <p class="empty-sub">Thêm testcase bên trên hoặc import từ Excel.</p>
-      </div>`;
+  // Áp dụng filter
+  const filteredTestcases = filterTestcases(testcases);
+
+  // Hiển thị số lượng đã filter
+  const filterInfo = document.getElementById('filter-info');
+  if (filteredTestcases.length < testcases.length) {
+    filterInfo.textContent = `Hiển thị ${filteredTestcases.length}/${testcases.length} testcase`;
+    filterInfo.style.display = 'block';
+  } else {
+    filterInfo.style.display = 'none';
+  }
+
+  if (filteredTestcases.length === 0) {
+    if (testcases.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <p>Chưa có testcase nào.</p>
+          <p class="empty-sub">Thêm testcase bên trên hoặc import từ Excel.</p>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>Không tìm thấy testcase nào phù hợp với bộ lọc.</p>
+          <p class="empty-sub">Thử thay đổi điều kiện lọc.</p>
+        </div>`;
+    }
     return;
   }
 
-  const rows = testcases.map((tc, i) => {
+  const rows = filteredTestcases.map((tc, i) => {
     const turnCount = tc.turns.length;
 
     // Map criteria ID to display name

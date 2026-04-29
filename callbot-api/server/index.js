@@ -15,6 +15,7 @@ const runRoute = require('./routes/run');
 const templateRoute = require('./routes/template');
 const testcaseRoute = require('./routes/testcase');
 const historyRoute = require('./routes/history');
+const exportRoute = require('./routes/export');
 const authMiddleware = require('./middleware/auth');
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api', runRoute);
 app.use('/api', templateRoute);
 app.use('/api', testcaseRoute);
 app.use('/api', historyRoute);
+app.use('/api', exportRoute);
 
 // Health check endpoint cho Render
 app.get('/health', (req, res) => {

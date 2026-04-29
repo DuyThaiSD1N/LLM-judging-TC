@@ -6,6 +6,8 @@ import { initRunner, runSingle } from './runner.js';
 import { renderEval, setRunSingleFn } from './table.js';
 import { initHistory } from './history.js';
 import { initCriteria } from './criteria.js';
+import { initExport } from './export.js';
+import { initFilter } from './filter.js';
 import { API_ENDPOINTS, API_KEY } from './config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -17,6 +19,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initRunner();
     initHistory();
     initCriteria();
+    initExport();
+    initFilter();
 
     renderEval();
 
