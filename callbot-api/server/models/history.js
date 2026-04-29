@@ -33,9 +33,9 @@ class History {
         const insert = db.prepare(`
             INSERT INTO history (
                 testcase_id, turn_number, question, expected, actual, action,
-                response_time_ms, verdict, error_desc, suggestion,
+                response_time_ms, verdict, error_desc, suggestion, suggested_response,
                 tone_note, brevity_note, time_verdict, time_note, error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         turnResults.forEach((turn, index) => {
@@ -50,6 +50,7 @@ class History {
                 turn.verdict || null,
                 turn.error_desc || null,
                 turn.suggestion || null,
+                turn.suggested_response || null,
                 turn.tone_note || null,
                 turn.brevity_note || null,
                 turn.time_verdict || null,

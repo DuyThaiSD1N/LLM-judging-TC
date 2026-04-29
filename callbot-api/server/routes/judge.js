@@ -55,6 +55,9 @@ function classifyTime(ms) {
  *   verdict: 'PASSED'|'FAILED',
  *   error_desc: string,
  *   suggestion: string,
+ *   suggested_response: string,
+ *   tone_note: string,
+ *   brevity_note: string,
  *   time_verdict: 'good'|'ok'|'slow',
  *   time_note: string
  * } | null}
@@ -113,11 +116,12 @@ FAILED khi:
 - Nhận xét ngắn gọn về thời gian phản hồi ${timeLabel}
 - Nếu chậm (> 3s): nêu ảnh hưởng đến trải nghiệm người dùng
 
-Trả về JSON với đúng 7 trường:
+Trả về JSON với đúng 8 trường:
 {
   "verdict": "PASSED" hoặc "FAILED",
   "error_desc": "Mô tả cụ thể lỗi nội dung nếu FAILED. Để trống nếu PASSED.",
   "suggestion": "Đề xuất cụ thể để cải thiện nếu FAILED. Để trống nếu PASSED.",
+  "suggested_response": "MẪU CÂU TRẢ LỜI ĐỀ XUẤT hoàn chỉnh để người dùng tham khảo và sửa nếu FAILED. Viết câu trả lời mẫu đầy đủ, tự nhiên, phù hợp với voicebot. Để trống nếu PASSED.",
   "tone_note": "Nhận xét 1 câu về độ tự nhiên và giọng điệu (tốt/cần cải thiện điểm gì).",
   "brevity_note": "Nhận xét 1 câu về độ ngắn gọn (súc tích/hơi dài/quá dài và lý do).",
   "time_verdict": "good" hoặc "ok" hoặc "slow",
@@ -138,6 +142,7 @@ Chỉ trả về JSON, không giải thích thêm.`;
         verdict: ['PASSED', 'FAILED'].includes(parsed.verdict) ? parsed.verdict : 'FAILED',
         error_desc: parsed.error_desc ?? '',
         suggestion: parsed.suggestion ?? '',
+        suggested_response: parsed.suggested_response ?? '',
         tone_note: parsed.tone_note ?? '',
         brevity_note: parsed.brevity_note ?? '',
         time_verdict: ['good', 'ok', 'slow'].includes(parsed.time_verdict)

@@ -56,6 +56,7 @@ async function runTurns(tc) {
             verdict: null,
             error_desc: '',
             suggestion: '',
+            suggested_response: '',
             tone_note: '',
             brevity_note: '',
             time_verdict: null,
@@ -82,6 +83,7 @@ async function runTurns(tc) {
                 turnResult.verdict = judge.verdict;
                 turnResult.error_desc = judge.error_desc;
                 turnResult.suggestion = judge.suggestion;
+                turnResult.suggested_response = judge.suggested_response;
                 turnResult.tone_note = judge.tone_note;
                 turnResult.brevity_note = judge.brevity_note;
                 turnResult.time_verdict = judge.time_verdict;

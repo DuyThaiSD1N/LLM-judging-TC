@@ -994,12 +994,69 @@ td.col-actions {
   border-radius: 12px;
   padding: 18px;
   transition: all 0.2s;
+  cursor: pointer;
 }
 
 .history-item:hover {
   border-color: #cbd5e1;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transform: translateY(-2px);
+}
+
+.history-item.expanded {
+  border-color: #667eea;
+  background: white;
+}
+
+.history-details {
+  display: none;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #f1f5f9;
+}
+
+.history-item.expanded .history-details {
+  display: block;
+}
+
+.turn-detail {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid #cbd5e1;
+}
+
+.turn-detail.pass {
+  border-left-color: #16a34a;
+}
+
+.turn-detail.fail {
+  border-left-color: #dc2626;
+}
+
+.turn-header {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.turn-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.turn-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.turn-value {
+  color: #1e293b;
 }
 
 .history-header {

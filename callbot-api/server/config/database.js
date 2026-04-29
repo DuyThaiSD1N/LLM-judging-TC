@@ -55,6 +55,7 @@ db.exec(`
     verdict TEXT,
     error_desc TEXT,
     suggestion TEXT,
+    suggested_response TEXT,
     tone_note TEXT,
     brevity_note TEXT,
     time_verdict TEXT,

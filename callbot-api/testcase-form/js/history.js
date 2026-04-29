@@ -91,8 +91,8 @@ async function loadHistory() {
         // Group by testcase and run time
         const grouped = groupHistoryByRun(history);
 
-        listContainer.innerHTML = grouped.map(run => `
-            <div class="history-item">
+        listContainer.innerHTML = grouped.map((run, index) => `
+            <div class="history-item" data-run-index="${index}">
                 <div class="history-header">
                     <div class="history-title">
                         ${run.testcase_name} <span style="color:#94a3b8;font-weight:400;">(${run.testcase_code})</span>
@@ -107,8 +107,56 @@ async function loadHistory() {
                         ${run.all_passed ? '✓ PASS' : '✕ FAIL'}
                     </span>
                 </div>
+                <div class="history-details">
+                    ${run.details.map((turn, i) => `
+                        <div class="turn-detail ${turn.verdict === 'PASS' ? 'pass' : 'fail'}">
+                            <div class="turn-header">Lượt ${i + 1} - ${turn.verdict || 'N/A'}</div>
+                            <div class="turn-row">
+                                <div class="turn-label">Câu hỏi:</div>
+                                <div class="turn-value">${turn.question}</div>
+                            </div>
+                            <div class="turn-row">
+                                <div class="turn-label">Kỳ vọng:</div>
+                                <div class="turn-value">${turn.expected}</div>
+                            </div>
+                            <div class="turn-row">
+                                <div class="turn-label">Thực tế:</div>
+                                <div class="turn-value">${turn.actual || 'N/A'}</div>
+                            </div>
+                            <div class="turn-row">
+                                <div class="turn-label">Thời gian:</div>
+                                <div class="turn-value">${turn.response_time_ms || 0}ms</div>
+                            </div>
+                            ${turn.error_desc ? `
+                                <div class="turn-row">
+                                    <div class="turn-label">Lỗi:</div>
+                                    <div class="turn-value" style="color:#dc2626;">${turn.error_desc}</div>
+                                </div>
+                            ` : ''}
+                            ${turn.suggestion ? `
+                                <div class="turn-row">
+                                    <div class="turn-label">Gợi ý:</div>
+                                    <div class="turn-value" style="color:#1d4ed8;">${turn.suggestion}</div>
+                                </div>
+                            ` : ''}
+                            ${turn.suggested_response ? `
+                                <div class="turn-row" style="margin-top:12px;padding-top:12px;border-top:1px dashed #e2e8f0;">
+                                    <div class="turn-label" style="color:#16a34a;font-weight:700;">📝 Mẫu đề xuất:</div>
+                                    <div class="turn-value" style="color:#15803d;background:#f0fdf4;padding:12px;border-radius:6px;border-left:3px solid #16a34a;line-height:1.6;">${turn.suggested_response}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
             </div>
         `).join('');
+
+        // Add click handlers
+        document.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', () => {
+                item.classList.toggle('expanded');
+            });
+        });
     } catch (err) {
         console.error('Failed to load history:', err);
         listContainer.innerHTML = '<p style="text-align:center;color:#dc2626;">Không tải được lịch sử</p>';
@@ -131,7 +179,8 @@ function groupHistoryByRun(history) {
                 run_at: item.run_at,
                 turns: 0,
                 passed: 0,
-                total_time: 0
+                total_time: 0,
+                details: []
             });
         }
 
@@ -139,6 +188,7 @@ function groupHistoryByRun(history) {
         run.turns++;
         if (item.verdict === 'PASS') run.passed++;
         if (item.response_time_ms) run.total_time += item.response_time_ms;
+        run.details.push(item);
     });
 
     runMap.forEach(run => {

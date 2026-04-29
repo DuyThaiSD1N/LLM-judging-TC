@@ -60,6 +60,7 @@ function initRow(tc) {
       verdict: null,
       error_desc: '',
       suggestion: '',
+      suggested_response: '',
       tone_note: '',
       brevity_note: '',
       time_verdict: null,
@@ -192,6 +193,9 @@ function renderSuggestion(turn, tcStatus) {
   if (tcStatus !== 'done') return '<span class="cell-empty">—</span>';
   const parts = [];
   if (turn.suggestion) parts.push(`<div class="judge-text sug-text">💡 ${turn.suggestion}</div>`);
+  if (turn.suggested_response) {
+    parts.push(`<div class="judge-text suggested-response-text" style="margin-top:8px;padding:10px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:6px;color:#15803d;line-height:1.6;">📝 <strong>Mẫu đề xuất:</strong><br/>${turn.suggested_response}</div>`);
+  }
   if (turn.tone_note) parts.push(`<div class="judge-text tone-text">🎙 ${turn.tone_note}</div>`);
   if (turn.brevity_note) parts.push(`<div class="judge-text brevity-text">✂️ ${turn.brevity_note}</div>`);
   return parts.length ? parts.join('') : '<span class="cell-empty">—</span>';
