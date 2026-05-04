@@ -1,65 +1,80 @@
-# routers/template.py — xuất file Excel mẫu (Times New Roman, header highlight)
+"""
+Template router - Xuất file Excel mẫu
+"""
 
-from io import BytesIO
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-import openpyxl
+from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
+from io import BytesIO
+
 
 router = APIRouter()
 
-HEADERS = ["Tên Testcase", "Mã Testcase", "Nhóm (A/B/C/D)", "Câu hỏi từ User", "Câu trả lời kỳ vọng"]
-SAMPLE  = ["Hỏi thủ tục đăng ký kết hôn", "TC-001", "A",
-           "đăng ký kết hôn cần giấy tờ gì",
-           "Cần CMND/CCCD và giấy xác nhận tình trạng hôn nhân, nộp tại UBND cấp xã"]
-COL_WIDTHS = [38, 14, 18, 48, 62]
-
 
 @router.get("/template")
-def download_template():
-    wb = openpyxl.Workbook()
+async def get_template():
+    """
+    Xuất file Excel mẫu để nhập testcase
+    
+    GET /api/template
+    """
+    # Create workbook
+    wb = Workbook()
     ws = wb.active
     ws.title = "Testcases"
-
-    # ── Style header ──────────────────────────────────────────────────────
-    header_fill   = PatternFill("solid", fgColor="FFF59D")          # vàng nhạt
-    header_font   = Font(name="Times New Roman", bold=True, size=11)
-    header_border = Border(
-        bottom=Side(style="medium", color="F9A825"),                 # cam đậm
-        top=Side(style="thin", color="BDBDBD"),
-        left=Side(style="thin", color="BDBDBD"),
-        right=Side(style="thin", color="BDBDBD"),
+    
+    # Headers
+    headers = [
+        "Tên Testcase",
+        "Mã Testcase",
+        "Nhóm (A/B/C/D)",
+        "Câu hỏi từ User",
+        "Câu trả lời kỳ vọng",
+        "LLM Judge (standard/strict/flexible/content-only/ux-focused)"
+    ]
+    ws.append(headers)
+    
+    # Sample data
+    sample = [
+        "Hỏi thủ tục đăng ký kết hôn",
+        "TC-001",
+        "A",
+        "đăng ký kết hôn cần giấy tờ gì",
+        "Cần CMND/CCCD và giấy xác nhận tình trạng hôn nhân, nộp tại UBND cấp xã",
+        "standard"
+    ]
+    ws.append(sample)
+    
+    # Column widths
+    column_widths = [35, 12, 16, 45, 60, 50]
+    for idx, width in enumerate(column_widths, 1):
+        ws.column_dimensions[chr(64 + idx)].width = width
+    
+    # Style header
+    header_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    header_font = Font(bold=True, size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
     )
-    header_align  = Alignment(horizontal="center", vertical="center", wrap_text=True)
-
-    ws.append(HEADERS)
-    for col_idx, cell in enumerate(ws[1], start=1):
-        cell.fill      = header_fill
-        cell.font      = header_font
-        cell.border    = header_border
-        cell.alignment = header_align
-        ws.column_dimensions[get_column_letter(col_idx)].width = COL_WIDTHS[col_idx - 1]
-
-    ws.row_dimensions[1].height = 28
-
-    # ── Style dòng mẫu ────────────────────────────────────────────────────
-    ws.append(SAMPLE)
-    sample_font  = Font(name="Times New Roman", size=11)
-    sample_align = Alignment(vertical="top", wrap_text=True)
-    for cell in ws[2]:
-        cell.font      = sample_font
-        cell.alignment = sample_align
-
-    ws.row_dimensions[2].height = 40
-
-    # ── Xuất file ─────────────────────────────────────────────────────────
-    buf = BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
     return StreamingResponse(
-        buf,
+        output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=testcase_mau.xlsx"},
+        headers={"Content-Disposition": "attachment; filename=testcase_mau.xlsx"}
     )

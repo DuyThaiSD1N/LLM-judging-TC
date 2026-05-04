@@ -85,7 +85,7 @@ function applyTurnResults(tcIdx, turnResults) {
     });
 }
 
-// ── Chạy tất cả ───────────────────────────────────────────────────────────
+// ── Chạy tất cả với STREAMING ─────────────────────────────────────────────
 async function runAll() {
     const testcases = getTestcases();
     if (testcases.length === 0) {
@@ -100,27 +100,72 @@ async function runAll() {
 
     setUIRunning(true);
     testcases.forEach((_, i) => setTcStatus(i, 'running'));
+    renderEval(); // ← Render ngay để hiển thị spinner
 
     try {
-        const res = await fetch(API_ENDPOINTS.RUN_ALL, {
+        // Sử dụng EventSource để nhận streaming results
+        const response = await fetch(API_ENDPOINTS.RUN_ALL_STREAM, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ testcases }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Lỗi server');
 
-        data.results.forEach((r, i) => {
-            applyTurnResults(i, r.turns);
-            setTcStatus(i, r.status, r.error);
-        });
-        renderEval();
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
-        // Tổng kết: đếm số turn PASSED
-        const allTurns = data.results.flatMap(r => r.turns ?? []);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let completedCount = 0;
+
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            // Decode chunk
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete messages (separated by \n\n)
+            const messages = buffer.split('\n\n');
+            buffer = messages.pop() || ''; // Keep incomplete message in buffer
+
+            for (const message of messages) {
+                if (!message.trim() || !message.startsWith('data: ')) continue;
+
+                const data = message.replace('data: ', '').trim();
+
+                try {
+                    const result = JSON.parse(data);
+
+                    // Check if done
+                    if (result.done) {
+                        console.log('✅ All testcases completed!');
+                        continue;
+                    }
+
+                    // Update testcase result
+                    const idx = result.index;
+                    applyTurnResults(idx, result.turns);
+                    setTcStatus(idx, result.status, result.error);
+                    renderEval(); // ← Render ngay khi có kết quả
+
+                    completedCount++;
+                    console.log(`✅ Testcase ${idx + 1}/${testcases.length} completed`);
+
+                } catch (e) {
+                    console.error('Failed to parse SSE message:', e, data);
+                }
+            }
+        }
+
+        // Tổng kết
+        const allTurns = testcases.flatMap((tc, i) => tc.turns);
         const passed = allTurns.filter(t => t.verdict === 'PASSED').length;
         const judged = allTurns.filter(t => t.verdict !== null).length;
         showToast(`✅ Xong! ${passed}/${judged} lượt PASSED`);
+
     } catch (err) {
         testcases.forEach((_, i) => setTcStatus(i, 'error', err.message));
         renderEval();
@@ -142,6 +187,7 @@ export async function runSingle(idx) {
 
     setUIRunning(true);
     setTcStatus(idx, 'running');
+    renderEval(); // ← Render ngay để hiển thị spinner
 
     try {
         const res = await fetch(API_ENDPOINTS.RUN_SINGLE, {
@@ -192,6 +238,7 @@ async function runBulk(indices) {
 
     setUIRunning(true);
     indices.forEach(i => setTcStatus(i, 'running'));
+    renderEval(); // ← Render ngay để hiển thị spinner
 
     try {
         const res = await fetch(API_ENDPOINTS.RUN_ALL, {

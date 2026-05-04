@@ -1,133 +1,201 @@
-# routers/run.py — chạy multi-turn testcase + LLM judge
+"""
+Run testcases router - Chạy testcases với LangGraph
+"""
 
-import time
-import httpx
-from fastapi import APIRouter
-from pydantic import BaseModel
-from typing import Optional
-from .judge import judge_one
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from typing import List
+import json
+import asyncio
+from langsmith import traceable
+
+from models.schemas import (
+    RunSingleRequest,
+    RunTestcasesRequest,
+    RunTestcasesResponse,
+    TestcaseRunResult
+)
+from graphs.testcase_runner import run_testcase
+from config.criteria_weights import CRITERIA_LIST
+
 
 router = APIRouter()
 
-CALLBOT_URL = "http://160.250.216.28:11005/api/v1/call/"
 
-
-class Turn(BaseModel):
-    question: str
-    expected: str = ""
-
-
-class Testcase(BaseModel):
-    code:  str
-    name:  str = ""
-    group: str = "A"
-    turns: list[Turn]
-
-
-class RunRequest(BaseModel):
-    testcases: list[Testcase]
-
-
-class SingleRequest(BaseModel):
-    code:  str
-    group: str = "A"
-    turns: list[Turn]
-
-
-# ── Gọi Callbot 1 lượt ───────────────────────────────────────────────────
-async def call_bot(conversation_id: str, message: str) -> dict:
-    payload = {"conversation_id": conversation_id, "message": message}
-    print(f"[callBot] → {payload}")
-
-    t0 = time.time()
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            CALLBOT_URL,
-            json=payload,
-            headers={"accept": "application/json", "Content-Type": "application/json"},
-        )
-    response_time_ms = int((time.time() - t0) * 1000)
-
-    resp.raise_for_status()
-    raw    = resp.text.strip()
-    parts  = raw.split("|")
-    action = parts[-1].strip()
-    answer = "|".join(parts[:-1]).strip()
-
-    print(f"[callBot] ← answer={answer[:60]} action={action} time={response_time_ms}ms")
-    return {"answer": answer, "action": action, "response_time_ms": response_time_ms}
-
-
-# ── Chạy toàn bộ turns của 1 testcase ────────────────────────────────────
-async def run_turns(tc: Testcase) -> list[dict]:
-    # Warmup: gửi "xin chào" để khởi động hội thoại
-    try:
-        await call_bot(tc.code, "xin chào")
-        print(f"[warmup] {tc.code} → đã chào")
-    except Exception as e:
-        print(f"[warmup] {tc.code} → lỗi: {e}")
-
-    results = []
-    for j, turn in enumerate(tc.turns):
-        turn_result = {
-            "question":        turn.question,
-            "expected":        turn.expected,
-            "actual":          "",
-            "action":          "",
-            "response_time_ms": None,
-            "verdict":         None,
-            "error_desc":      "",
-            "suggestion":      "",
-            "tone_note":       "",
-            "brevity_note":    "",
-            "time_verdict":    None,
-            "time_note":       "",
-            "error":           "",
-        }
+@router.post("/run-testcases", response_model=RunTestcasesResponse)
+@traceable(name="run_testcases_endpoint", run_type="chain")
+async def run_testcases(request: RunTestcasesRequest):
+    """
+    Chạy multiple testcases
+    
+    POST /api/run-testcases
+    Body: { testcases: [...] }
+    """
+    if not request.testcases:
+        raise HTTPException(status_code=400, detail="Không có testcase nào được gửi lên.")
+    
+    results: List[TestcaseRunResult] = []
+    
+    for tc in request.testcases:
+        # Chuẩn hoá: hỗ trợ format với turns
+        turns = [{"question": t.question, "expected": t.expected} for t in tc.turns]
+        
         try:
-            bot = await call_bot(tc.code, turn.question)
-            turn_result["actual"]           = bot["answer"]
-            turn_result["action"]           = bot["action"]
-            turn_result["response_time_ms"] = bot["response_time_ms"]
-
-            judge = await judge_one(
-                question=turn.question,
-                expected=turn.expected,
-                actual=bot["answer"],
+            # Run testcase với LangGraph
+            result = await run_testcase(
+                code=tc.code,
+                name=tc.name,
                 group=tc.group,
-                response_time_ms=bot["response_time_ms"],
+                turns=turns,
+                criteria=tc.criteria
             )
-            if judge:
-                turn_result.update(judge)
-                print(f"[judge] {tc.code} lượt {j+1} → {judge['verdict']} ({bot['response_time_ms']}ms)")
-            else:
-                print(f"[judge] {tc.code} lượt {j+1} → skipped (câu chào)")
+            
+            results.append(
+                TestcaseRunResult(
+                    code=tc.code,
+                    name=tc.name,
+                    group=tc.group,
+                    turns=result["turns"],
+                    criteria=tc.criteria,
+                    status=result["status"],
+                    error=result.get("error")
+                )
+            )
         except Exception as e:
-            turn_result["error"] = str(e)
-            print(f"[error] {tc.code} lượt {j+1}: {e}")
-
-        results.append(turn_result)
-    return results
-
-
-# ── POST /api/run-testcases ───────────────────────────────────────────────
-@router.post("/run-testcases")
-async def run_testcases(body: RunRequest):
-    results = []
-    for tc in body.testcases:
-        try:
-            turn_results = await run_turns(tc)
-            results.append({**tc.model_dump(), "turns": turn_results, "status": "done"})
-        except Exception as e:
-            results.append({**tc.model_dump(), "status": "error", "error": str(e)})
-    return {"results": results}
+            results.append(
+                TestcaseRunResult(
+                    code=tc.code,
+                    name=tc.name,
+                    group=tc.group,
+                    turns=[],
+                    criteria=tc.criteria,
+                    status="error",
+                    error=str(e)
+                )
+            )
+    
+    return RunTestcasesResponse(results=results)
 
 
-# ── POST /api/run-single ──────────────────────────────────────────────────
 @router.post("/run-single")
-async def run_single(body: SingleRequest):
-    if not body.turns or not body.turns[0].question:
-        return {"error": "Thiếu câu hỏi."}, 400
-    tc = Testcase(code=body.code, group=body.group, turns=body.turns)
-    turn_results = await run_turns(tc)
-    return {"turns": turn_results, "status": "done"}
+@traceable(name="run_single_endpoint", run_type="chain")
+async def run_single(request: RunSingleRequest):
+    """
+    Chạy single testcase
+    
+    POST /api/run-single
+    Body: { code, group, turns?, question?, expected?, criteria? }
+    """
+    # Hỗ trợ cả format cũ và mới
+    if request.turns:
+        turns = [{"question": t.question, "expected": t.expected} for t in request.turns]
+    elif request.question and request.expected:
+        turns = [{"question": request.question, "expected": request.expected}]
+    else:
+        raise HTTPException(status_code=400, detail="Thiếu câu hỏi.")
+    
+    try:
+        # Run testcase với LangGraph
+        result = await run_testcase(
+            code=request.code,
+            name=request.code,
+            group=request.group,
+            turns=turns,
+            criteria=request.criteria
+        )
+        
+        return {
+            "turns": result["turns"],
+            "status": result["status"],
+            "error": result.get("error")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/criteria")
+async def get_criteria():
+    """
+    Lấy danh sách tiêu chí đánh giá
+    
+    GET /api/criteria
+    """
+    return {"criteria": CRITERIA_LIST}
+
+
+@router.post("/run-testcases-stream")
+@traceable(name="run_testcases_stream_endpoint", run_type="chain")
+async def run_testcases_stream(request: RunTestcasesRequest):
+    """
+    Chạy multiple testcases với streaming results
+    Mỗi testcase xong sẽ stream về client ngay
+    
+    POST /api/run-testcases-stream
+    Body: { testcases: [...] }
+    
+    Response: Server-Sent Events (SSE)
+    """
+    if not request.testcases:
+        raise HTTPException(status_code=400, detail="Không có testcase nào được gửi lên.")
+    
+    async def event_generator():
+        """Generator để stream results"""
+        
+        # Tạo tasks cho tất cả testcases
+        tasks = []
+        for idx, tc in enumerate(request.testcases):
+            turns = [{"question": t.question, "expected": t.expected} for t in tc.turns]
+            
+            async def run_and_yield(index: int, testcase):
+                """Run testcase và yield kết quả"""
+                try:
+                    result = await run_testcase(
+                        code=testcase.code,
+                        name=testcase.name,
+                        group=testcase.group,
+                        turns=turns,
+                        criteria=testcase.criteria
+                    )
+                    
+                    return {
+                        "index": index,
+                        "code": testcase.code,
+                        "name": testcase.name,
+                        "group": testcase.group,
+                        "turns": result["turns"],
+                        "criteria": testcase.criteria,
+                        "status": result["status"],
+                        "error": result.get("error")
+                    }
+                except Exception as e:
+                    return {
+                        "index": index,
+                        "code": testcase.code,
+                        "name": testcase.name,
+                        "group": testcase.group,
+                        "turns": [],
+                        "criteria": testcase.criteria,
+                        "status": "error",
+                        "error": str(e)
+                    }
+            
+            tasks.append(run_and_yield(idx, tc))
+        
+        # Chạy tất cả tasks concurrently và yield khi nào xong
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
+            # Stream result về client
+            yield f"data: {json.dumps(result)}\n\n"
+        
+        # Signal hoàn thành
+        yield "data: {\"done\": true}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )

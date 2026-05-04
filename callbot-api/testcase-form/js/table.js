@@ -5,15 +5,9 @@ import { getIsRunning } from './state.js';
 
 let testcases = [];
 let _runSingleFn = null;
-let selectedIndices = new Set();
 
 export function setRunSingleFn(fn) { _runSingleFn = fn; }
 export function getTestcases() { return testcases; }
-export function getSelectedIndices() { return Array.from(selectedIndices); }
-export function clearSelection() {
-  selectedIndices.clear();
-  renderEval();
-}
 
 export function addTestcase(tc) {
   testcases.push(initRow(tc));
@@ -27,15 +21,6 @@ export function addBulkTestcases(list) {
 
 export function deleteTestcase(idx) {
   testcases.splice(idx, 1);
-  selectedIndices.clear(); // Clear selection after delete
-  renderEval();
-}
-
-export function deleteBulk(indices) {
-  // Sort descending to delete from end to start
-  indices.sort((a, b) => b - a);
-  indices.forEach(idx => testcases.splice(idx, 1));
-  selectedIndices.clear();
   renderEval();
 }
 
@@ -207,14 +192,9 @@ export function renderEval() {
 
     return tc.turns.map((turn, j) => {
       const isFirst = j === 0;
-      const isSelected = selectedIndices.has(i);
       const rowClass = isFirst ? 'tc-first-row' : 'tc-sub-row';
-      const selectedClass = isSelected ? 'row-selected' : '';
 
       const tcCells = isFirst ? `
-        <td class="col-checkbox" rowspan="${turnCount}">
-          <input type="checkbox" class="tc-checkbox" data-idx="${i}" ${isSelected ? 'checked' : ''} />
-        </td>
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
         <td class="col-name" rowspan="${turnCount}">${tc.name}</td>
@@ -230,7 +210,7 @@ export function renderEval() {
         </td>` : '';
 
       return `
-        <tr class="${rowClass} ${selectedClass}">
+        <tr class="${rowClass}">
           ${tcCells}
           <td class="col-turn-num">Lượt ${j + 1}</td>
           <td class="col-q">${turn.question}</td>
@@ -250,9 +230,6 @@ export function renderEval() {
       <table>
         <thead>
           <tr>
-            <th style="width:40px;">
-              <input type="checkbox" id="select-all-checkbox" title="Chọn tất cả" />
-            </th>
             <th>#</th>
             <th>Mã TC</th>
             <th>Tên Testcase</th>
@@ -273,31 +250,7 @@ export function renderEval() {
       </table>
     </div>`;
 
-  // Bulk action bar
-  updateBulkActionBar();
-
   // Event listeners
-  document.getElementById('select-all-checkbox')?.addEventListener('change', (e) => {
-    if (e.target.checked) {
-      filteredTestcases.forEach((_, i) => selectedIndices.add(i));
-    } else {
-      selectedIndices.clear();
-    }
-    renderEval();
-  });
-
-  container.querySelectorAll('.tc-checkbox').forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const idx = Number(e.target.dataset.idx);
-      if (e.target.checked) {
-        selectedIndices.add(idx);
-      } else {
-        selectedIndices.delete(idx);
-      }
-      renderEval();
-    });
-  });
-
   container.querySelectorAll('.btn-del').forEach(btn =>
     btn.addEventListener('click', () => deleteTestcase(Number(btn.dataset.idx))));
 
@@ -324,7 +277,9 @@ export function renderEval() {
 // ── Cell renderers ────────────────────────────────────────────────────────
 function renderActual(turn, tcStatus) {
   if (tcStatus === 'pending') return '<span class="cell-empty">—</span>';
-  if (tcStatus === 'running' && turn.actual === null) return '<span class="spinner-inline"></span>';
+  if (tcStatus === 'running' && turn.actual === null) {
+    return '<div class="cell-loading"><span class="spinner-cell"></span></div>';
+  }
   if (tcStatus === 'error' && turn.actual === null) return `<span class="actual-error">❌ Lỗi</span>`;
   if (turn.actual === null) return '<span class="cell-empty">—</span>';
 
@@ -336,7 +291,9 @@ function renderActual(turn, tcStatus) {
 
 function renderTime(turn, tcStatus) {
   if (tcStatus === 'pending') return '<span class="cell-empty">—</span>';
-  if (tcStatus === 'running' && turn.response_time_ms === null) return '<span class="spinner-inline"></span>';
+  if (tcStatus === 'running' && turn.response_time_ms === null) {
+    return '<div class="cell-loading"><span class="spinner-cell"></span></div>';
+  }
   if (turn.response_time_ms == null) return '<span class="cell-empty">—</span>';
 
   const ms = turn.response_time_ms;
@@ -348,7 +305,9 @@ function renderTime(turn, tcStatus) {
 
 function renderVerdict(turn, tcStatus) {
   if (tcStatus === 'pending') return '<span class="cell-empty">—</span>';
-  if (tcStatus === 'running' && turn.verdict === null) return '<span class="spinner-inline"></span>';
+  if (tcStatus === 'running' && turn.verdict === null) {
+    return '<div class="cell-loading"><span class="spinner-cell"></span></div>';
+  }
   if (tcStatus === 'error') return '<span class="verdict-fail">✕ Lỗi</span>';
   if (turn.actual === null) return '<span class="cell-empty">—</span>';
   if (!turn.verdict) return '<span class="verdict-fail">✕ Lỗi đánh giá</span>';
@@ -359,12 +318,26 @@ function renderVerdict(turn, tcStatus) {
 }
 
 function renderErrorDesc(turn, tcStatus) {
-  if (tcStatus !== 'done' || !turn.error_desc) return '<span class="cell-empty">—</span>';
+  // Chỉ hiển thị lỗi khi FAILED
+  if (tcStatus !== 'done') return '<span class="cell-empty">—</span>';
+  if (turn.verdict === 'PASSED') return '<span class="cell-empty">—</span>';
+  if (!turn.error_desc) return '<span class="cell-empty">—</span>';
   return `<div class="judge-text err-text">${turn.error_desc}</div>`;
 }
 
 function renderSuggestion(turn, tcStatus) {
   if (tcStatus !== 'done') return '<span class="cell-empty">—</span>';
+
+  // Chỉ hiển thị suggestion khi FAILED
+  if (turn.verdict === 'PASSED') {
+    // Với PASSED, chỉ hiển thị tone_note nếu có
+    if (turn.tone_note) {
+      return `<div class="judge-text tone-text">🎙 ${turn.tone_note}</div>`;
+    }
+    return '<span class="cell-empty">—</span>';
+  }
+
+  // Với FAILED, hiển thị đầy đủ
   const parts = [];
   if (turn.suggestion) parts.push(`<div class="judge-text sug-text">💡 ${turn.suggestion}</div>`);
   if (turn.suggested_response) {
@@ -373,60 +346,3 @@ function renderSuggestion(turn, tcStatus) {
   if (turn.tone_note) parts.push(`<div class="judge-text tone-text">🎙 ${turn.tone_note}</div>`);
   return parts.length ? parts.join('') : '<span class="cell-empty">—</span>';
 }
-
-// ── Bulk Actions ──────────────────────────────────────────────────────────
-function updateBulkActionBar() {
-  const count = selectedIndices.size;
-  let bar = document.getElementById('bulk-action-bar');
-
-  if (count === 0) {
-    if (bar) bar.remove();
-    return;
-  }
-
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'bulk-action-bar';
-    bar.className = 'bulk-action-bar';
-    document.querySelector('.table-section').insertBefore(bar, document.getElementById('table-container'));
-  }
-
-  bar.innerHTML = `
-    <div class="bulk-info">
-      <span class="bulk-count">${count}</span> testcase được chọn
-    </div>
-    <div class="bulk-actions">
-      <button id="bulk-run" class="btn-bulk btn-bulk-run">▶ Chạy đã chọn</button>
-      <button id="bulk-delete" class="btn-bulk btn-bulk-delete">🗑 Xóa đã chọn</button>
-      <button id="bulk-clear" class="btn-bulk btn-bulk-clear">✕ Bỏ chọn</button>
-    </div>
-  `;
-
-  document.getElementById('bulk-run')?.addEventListener('click', handleBulkRun);
-  document.getElementById('bulk-delete')?.addEventListener('click', handleBulkDelete);
-  document.getElementById('bulk-clear')?.addEventListener('click', () => {
-    selectedIndices.clear();
-    renderEval();
-  });
-}
-
-function handleBulkRun() {
-  const indices = Array.from(selectedIndices);
-  if (indices.length === 0) return;
-
-  // Dispatch event for runner to handle
-  window.dispatchEvent(new CustomEvent('bulk-run', { detail: { indices } }));
-}
-
-function handleBulkDelete() {
-  const count = selectedIndices.size;
-  if (count === 0) return;
-
-  if (confirm(`Bạn có chắc muốn xóa ${count} testcase đã chọn?`)) {
-    deleteBulk(Array.from(selectedIndices));
-    import('./toast.js').then(({ showToast }) => {
-      showToast(`🗑 Đã xóa ${count} testcase`, 'success');
-    });
-  }
-}
-

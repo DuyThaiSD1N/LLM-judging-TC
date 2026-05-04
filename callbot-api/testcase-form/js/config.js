@@ -14,6 +14,7 @@ console.log('🔗 API Base URL:', API_BASE_URL);
 // Export các endpoint
 export const API_ENDPOINTS = {
     RUN_ALL: `${API_BASE_URL}/api/run-testcases`,
+    RUN_ALL_STREAM: `${API_BASE_URL}/api/run-testcases-stream`,  // ← NEW: Streaming
     RUN_SINGLE: `${API_BASE_URL}/api/run-single`,
     UPLOAD: `${API_BASE_URL}/api/upload-excel`,
     TEMPLATE: `${API_BASE_URL}/api/template`,

@@ -1,11 +1,45 @@
-node_modules/
-.env
-*.log
-.DS_Store
+# Python
 __pycache__/
-*.pyc
-uploads/
-data/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Database
 *.db
 *.db-shm
 *.db-wal
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test files
+test_*.py
+test_*.html
+*_test.py
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
