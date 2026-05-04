@@ -1,11 +1,12 @@
 """
-Factory để tạo prompt cho từng tiêu chí đánh giá
+Factory để tạo prompt cho từng tiêu chí đánh giá - LLM tự đánh giá không dùng scoring
 Sử dụng LangChain ChatPromptTemplate
 """
 
 from langchain_core.prompts import ChatPromptTemplate
 from .base_prompt import (
     DOMAIN_GLOSSARY,
+    GROUP_RULES,
     SELF_CONSISTENCY_RULES,
     OUTPUT_WARNING,
     CONFIDENCE_GUIDELINES,
@@ -16,51 +17,42 @@ from .base_prompt import (
 
 
 def get_standard_prompt() -> str:
-    """Tiêu chí Chuẩn - Cân bằng"""
+    """Tiêu chí Chuẩn - Cân bằng giữa nội dung, giọng điệu và thời gian"""
     return """Bạn là chuyên gia kiểm thử chatbot hành chính công. Đánh giá theo tiêu chí CHUẨN.
 
 {context}
 
 {domain_glossary}
 
-## SCORING RUBRIC
-Chấm điểm 0-100 cho 3 thành phần:
+{group_rules}
 
-**Content Score (0-100):**
-• 100: 100% thông tin kỳ vọng + 100% chính xác
-• 80-99: 100% thông tin nhưng có chi tiết nhỏ không chính xác
-• 60-79: 80-99% thông tin quan trọng
-• 40-59: 60-79% thông tin quan trọng
-• 20-39: 40-59% thông tin quan trọng
-• 0-19: <40% thông tin hoặc thông tin sai nghiêm trọng
+## TIÊU CHÍ CHUẨN — Cân bằng nội dung + giọng điệu + thời gian
 
-**Tone Score (0-100):**
-• 100: Xưng hô + dạ/ạ + tự nhiên + thân thiện
-• 80-99: Xưng hô + dạ/ạ nhưng hơi máy móc
-• 60-79: Có xưng hô nhưng thiếu dạ/ạ
-• 40-59: Thiếu xưng hô nhưng có dạ/ạ
-• 20-39: Không xưng hô và không dạ/ạ
-• 0-19: Thô lỗ hoặc không phù hợp
+**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
+Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
+Đặc biệt với nhóm B: nếu bot từ chối + chuyển hướng → PASSED ngay, không cần xét thêm.
 
-**Time Score (0-100):**
-• 100: ≤2s
-• 70: ≤3s
-• 40: ≤5s
-• 0: >5s
+**Bước 2: Đánh giá nội dung (chỉ với nhóm A, C, D)**
+- Nội dung có đúng và đủ so với kỳ vọng không? (≥80% là đạt)
+- Không cần giống từng chữ, chỉ cần đúng ý chính
 
-**Total Score = content_score × 0.5 + tone_score × 0.3 + time_score × 0.2**
-**PASSED nếu total_score ≥ 70, FAILED nếu < 70**
+**Bước 3: Đánh giá giọng điệu**
+- Có xưng hô phù hợp (anh/chị/em) không?
+- Có dùng dạ/ạ không?
+- Giọng điệu có tự nhiên, thân thiện không?
+- Giọng điệu kém KHÔNG tự động dẫn đến FAILED nếu nội dung tốt
+
+**Bước 4: Đánh giá thời gian**
+- ≤2s: Rất tốt
+- ≤3s: Chấp nhận được
+- >3s: Chậm (ghi nhận nhưng không tự động FAILED)
+
+**Quyết định PASSED/FAILED:**
+- PASSED: Nội dung đúng đủ (≥80%) VÀ giọng điệu chấp nhận được
+- FAILED: Nội dung sai/thiếu quan trọng HOẶC giọng điệu rất kém (thô lỗ, cộc lốc)
+- Thời gian chậm: chỉ FAILED nếu >5s
 
 {self_consistency}
-
-## SUY LUẬN (bắt buộc)
-Hãy phân tích từng bước:
-1. **Content Score**: Liệt kê thông tin kỳ vọng → Liệt kê thông tin thực tế → Tính % đầy đủ và chính xác → Chấm điểm /100
-2. **Tone Score**: Có xưng hô? Có dạ/ạ? Tự nhiên? Thân thiện? → Chấm điểm /100
-3. **Time Score**: Thời gian bao nhiêu? → Chấm điểm /100 theo rubric
-4. **Total Score**: Tính theo công thức (content×0.5 + tone×0.3 + time×0.2)
-5. **Verdict**: total_score ≥70 → PASSED, <70 → FAILED
-6. **Self-check**: Kiểm tra tính nhất quán theo rules
 
 {output_warning}
 
@@ -73,39 +65,40 @@ Hãy phân tích từng bước:
 
 
 def get_strict_prompt() -> str:
-    """Tiêu chí Nghiêm ngặt"""
+    """Tiêu chí Nghiêm ngặt - Yêu cầu cao về mọi mặt"""
     return """Bạn là chuyên gia kiểm thử RẤT KHÓ TÍNH. Đánh giá theo tiêu chí NGHIÊM NGẶT.
 
 {context}
 
 {domain_glossary}
 
-## SCORING RUBRIC (NGHIÊM NGẶT)
-Chấm điểm 0-100 cho 3 thành phần:
+{group_rules}
 
-**Content Score (0-100) - Rất khắt khe:**
-• 100: 100% thông tin + 100% chính xác + không thiếu chi tiết nào
-• 90-99: 100% thông tin nhưng có 1 chi tiết nhỏ không hoàn hảo
-• 80-89: 95-99% thông tin
-• 60-79: 90-94% thông tin
-• 40-59: 80-89% thông tin
-• 0-39: <80% thông tin
+## TIÊU CHÍ NGHIÊM NGẶT — Yêu cầu cao về mọi mặt
 
-**Tone Score (0-100) - Yêu cầu hoàn hảo:**
-• 100: Xưng hô + dạ/ạ + tự nhiên + thân thiện + hoàn hảo
-• 90-99: Xưng hô + dạ/ạ + tự nhiên nhưng hơi máy móc
-• 80-89: Xưng hô + dạ/ạ nhưng thiếu tự nhiên
-• 60-79: Có xưng hô nhưng thiếu dạ/ạ
-• 40-59: Thiếu xưng hô
-• 0-39: Không xưng hô, không dạ/ạ
+**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
+Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
+Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED (nhưng vẫn nhận xét chất lượng từ chối).
 
-**Time Score (0-100) - Yêu cầu nhanh:**
-• 100: ≤2s
-• 50: ≤2.5s
-• 0: >2.5s
+**Bước 2: Đánh giá nội dung (khắt khe)**
+- Phải có ≥95% thông tin kỳ vọng
+- Không được thiếu bất kỳ chi tiết quan trọng nào
+- Thông tin phải 100% chính xác
 
-**Total Score = content_score × 0.4 + tone_score × 0.4 + time_score × 0.2**
-**PASSED nếu total_score ≥ 85, FAILED nếu < 85**
+**Bước 3: Đánh giá giọng điệu (yêu cầu hoàn hảo)**
+- Phải có xưng hô đúng (anh/chị/em)
+- Phải có dạ/ạ
+- Phải tự nhiên, thân thiện, không máy móc
+- Thiếu bất kỳ yếu tố nào → trừ điểm nặng
+
+**Bước 4: Đánh giá thời gian (yêu cầu nhanh)**
+- ≤2s: Tốt
+- ≤2.5s: Chấp nhận được
+- >2.5s: Cần ghi nhận là lỗi
+
+**Quyết định PASSED/FAILED:**
+- PASSED: Nội dung ≥95% + giọng điệu tốt (xưng hô + dạ/ạ) + thời gian ≤2.5s
+- FAILED: Bất kỳ khiếm khuyết đáng kể nào về nội dung, giọng điệu, hoặc thời gian
 
 {self_consistency}
 
@@ -119,42 +112,43 @@ Chấm điểm 0-100 cho 3 thành phần:
 """
 
 
-def get_flexible_prompt() -> str:
-    """Tiêu chí Linh hoạt"""
-    return """Bạn là chuyên gia kiểm thử KHOAN DUNG. Đánh giá theo tiêu chí LINH HOẠT.
+def get_speed_focused_prompt() -> str:
+    """Tiêu chí Tốc độ - Ưu tiên thời gian phản hồi"""
+    return """Bạn là chuyên gia kiểm thử. ĐÁNH GIÁ ƯU TIÊN TỐC ĐỘ PHẢN HỒI.
 
 {context}
 
 {domain_glossary}
 
-## SCORING RUBRIC (LINH HOẠT)
-Chấm điểm 0-100 cho 3 thành phần:
+{group_rules}
 
-**Content Score (0-100) - Khoan dung hơn:**
-• 100: ≥90% thông tin quan trọng + chính xác
-• 80-99: 80-89% thông tin quan trọng
-• 60-79: 70-79% thông tin quan trọng (chấp nhận được)
-• 40-59: 60-69% thông tin quan trọng
-• 20-39: 40-59% thông tin
-• 0-19: <40% thông tin hoặc sai nghiêm trọng
+## TIÊU CHÍ TỐC ĐỘ — Ưu tiên thời gian phản hồi nhanh
 
-**Tone Score (0-100) - Khoan dung:**
-• 100: Xưng hô + dạ/ạ + tự nhiên
-• 80-99: Có xưng hô hoặc dạ/ạ (không cần cả hai)
-• 60-79: Lịch sự cơ bản, không thô lỗ
-• 40-59: Hơi máy móc nhưng chấp nhận được
-• 20-39: Máy móc, cộc lốc
-• 0-19: Thô lỗ
+**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
+Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
+Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED bất kể thời gian.
 
-**Time Score (0-100):**
-• 100: ≤2s
-• 80: ≤3s
-• 60: ≤5s (chấp nhận được)
-• 30: ≤7s
-• 0: >7s
+**Bước 2: Đánh giá thời gian (QUAN TRỌNG NHẤT)**
+- ≤1.5s: Xuất sắc
+- ≤2s: Rất tốt
+- ≤3s: Chấp nhận được
+- >3s: Chậm → cần nội dung rất tốt mới PASSED
 
-**Total Score = content_score × 0.6 + tone_score × 0.2 + time_score × 0.2**
-**PASSED nếu total_score ≥ 60, FAILED nếu < 60**
+**Bước 3: Đánh giá nội dung (chỉ cần đủ tốt)**
+- ≥70% thông tin quan trọng là chấp nhận được
+- Không cần 100% hoàn hảo
+- Ưu tiên trả lời nhanh hơn là chi tiết
+
+**Bước 4: Đánh giá giọng điệu (ít quan trọng)**
+- Có xưng hô hoặc dạ/ạ là được
+- Chấp nhận hơi máy móc
+- Chỉ FAILED nếu thô lỗ rõ ràng
+
+**Quyết định PASSED/FAILED:**
+- PASSED: Thời gian ≤2s + nội dung ≥70%
+- PASSED: Thời gian ≤3s + nội dung ≥80%
+- FAILED: Thời gian >3s + nội dung <80%
+- FAILED: Nội dung <70% bất kể thời gian
 
 {self_consistency}
 
@@ -169,35 +163,38 @@ Chấm điểm 0-100 cho 3 thành phần:
 
 
 def get_content_only_prompt() -> str:
-    """Tiêu chí Nội dung - Chỉ đánh giá content"""
-    return """Bạn là chuyên gia kiểm thử. ĐÁNH GIÁ CHỈ NỘI DUNG.
+    """Tiêu chí Nội dung - Chỉ đánh giá content, bỏ qua giọng điệu"""
+    return """Bạn là chuyên gia kiểm thử. ĐÁNH GIÁ CHỈ NỘI DUNG, BỎ QUA GIỌNG ĐIỆU.
 
 {context}
 
 {domain_glossary}
 
-## SCORING RUBRIC (CONTENT-ONLY)
-Chấm điểm 0-100 cho 3 thành phần:
+{group_rules}
 
-**Content Score (0-100) - QUAN TRỌNG NHẤT:**
-• 100: 100% thông tin kỳ vọng + 100% chính xác
-• 80-99: 100% thông tin nhưng có chi tiết nhỏ không chính xác
-• 60-79: 80-99% thông tin quan trọng
-• 40-59: 60-79% thông tin quan trọng
-• 20-39: 40-59% thông tin
-• 0-19: <40% thông tin hoặc sai nghiêm trọng
+## TIÊU CHÍ NỘI DUNG — Chỉ đánh giá độ chính xác thông tin
 
-**Tone Score (0-100) - BỎ QUA:**
-• Luôn cho 100 điểm (không đánh giá giọng điệu)
+**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
+Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
+Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED bất kể giọng điệu hay thời gian.
 
-**Time Score (0-100):**
-• 100: ≤2s
-• 70: ≤3s
-• 40: ≤5s
-• 0: >5s
+**Bước 2: Đánh giá nội dung (QUAN TRỌNG NHẤT — DUY NHẤT)**
+- Nội dung có đúng và đủ so với kỳ vọng không?
+- ≥80% thông tin quan trọng → PASSED
+- <80% hoặc sai thông tin → FAILED
 
-**Total Score = content_score × 0.8 + tone_score × 0.0 + time_score × 0.2**
-**PASSED nếu total_score ≥ 70, FAILED nếu < 70**
+**Bước 3: Giọng điệu — BỎ QUA HOÀN TOÀN**
+- Không đánh giá xưng hô, dạ/ạ, tự nhiên
+- Chấp nhận mọi cách diễn đạt miễn nội dung đúng
+- tone_note: chỉ ghi nhận, không ảnh hưởng verdict
+
+**Bước 4: Thời gian — Ít quan trọng**
+- ≤5s: Chấp nhận được
+- >5s: Ghi nhận nhưng không tự động FAILED
+
+**Quyết định PASSED/FAILED:**
+- PASSED: Nội dung đầy đủ và chính xác (≥80%)
+- FAILED: Thiếu thông tin quan trọng hoặc sai thông tin
 
 {self_consistency}
 
@@ -212,40 +209,39 @@ Chấm điểm 0-100 cho 3 thành phần:
 
 
 def get_ux_focused_prompt() -> str:
-    """Tiêu chí Trải nghiệm - Ưu tiên UX"""
+    """Tiêu chí Trải nghiệm - Ưu tiên giọng điệu và UX"""
     return """Bạn là chuyên gia UX/CX. ĐÁNH GIÁ TRẢI NGHIỆM NGƯỜI DÙNG.
 
 {context}
 
 {domain_glossary}
 
-## SCORING RUBRIC (UX-FOCUSED)
-Chấm điểm 0-100 cho 3 thành phần:
+{group_rules}
 
-**Content Score (0-100) - Chỉ cần ≥70%:**
-• 100: ≥90% thông tin
-• 80-99: 80-89% thông tin
-• 70-79: 70-79% thông tin (đủ tốt)
-• 50-69: 60-69% thông tin
-• 30-49: 50-59% thông tin
-• 0-29: <50% thông tin
+## TIÊU CHÍ TRẢI NGHIỆM — Ưu tiên giọng điệu thân thiện
 
-**Tone Score (0-100) - QUAN TRỌNG NHẤT:**
-• 100: Xưng hô + dạ/ạ + tự nhiên + thân thiện + ấm áp
-• 90-99: Xưng hô + dạ/ạ + tự nhiên
-• 80-89: Xưng hô + dạ/ạ nhưng hơi máy móc
-• 70-79: Có xưng hô hoặc dạ/ạ
-• 50-69: Lịch sự cơ bản
-• 0-49: Máy móc, cộc lốc, thô lỗ
+**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
+Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
+Với nhóm B: nếu bot từ chối + chuyển hướng lịch sự, thân thiện → PASSED.
 
-**Time Score (0-100):**
-• 100: ≤2s
-• 70: ≤3s
-• 40: ≤5s
-• 0: >5s
+**Bước 2: Đánh giá giọng điệu (QUAN TRỌNG NHẤT)**
+- Có xưng hô phù hợp (anh/chị/em) không?
+- Có dùng dạ/ạ không?
+- Giọng điệu có tự nhiên, thân thiện, ấm áp không?
+- Có tạo cảm giác thoải mái cho người dùng không?
 
-**Total Score = content_score × 0.3 + tone_score × 0.5 + time_score × 0.2**
-**PASSED nếu total_score ≥ 70, FAILED nếu < 70**
+**Bước 3: Đánh giá nội dung (chỉ cần đủ tốt)**
+- ≥70% thông tin quan trọng là đủ
+- Không cần 100% hoàn hảo
+- Ưu tiên trải nghiệm hơn là chi tiết kỹ thuật
+
+**Bước 4: Đánh giá thời gian**
+- ≤3s: Tốt
+- >3s: Cần cải thiện (ghi nhận nhưng không tự động FAILED)
+
+**Quyết định PASSED/FAILED:**
+- PASSED: Giọng điệu tốt (xưng hô + dạ/ạ + tự nhiên) + nội dung ≥70%
+- FAILED: Giọng điệu kém (thô lỗ, cộc lốc, máy móc hoàn toàn) HOẶC nội dung <70%
 
 {self_consistency}
 
@@ -263,7 +259,7 @@ Chấm điểm 0-100 cho 3 thành phần:
 PROMPT_MAP = {
     "standard": get_standard_prompt,
     "strict": get_strict_prompt,
-    "flexible": get_flexible_prompt,
+    "speed-focused": get_speed_focused_prompt,
     "content-only": get_content_only_prompt,
     "ux-focused": get_ux_focused_prompt,
 }
@@ -279,7 +275,7 @@ def create_judge_prompt(
 ) -> ChatPromptTemplate:
     """
     Tạo prompt template cho LLM judge
-    
+
     Args:
         criteria: Tiêu chí đánh giá
         question: Câu hỏi
@@ -287,28 +283,26 @@ def create_judge_prompt(
         actual: Câu trả lời thực tế
         group: Nhóm testcase
         time_label: Label thời gian (vd: "1500ms (Nhanh)")
-        
+
     Returns:
         ChatPromptTemplate đã format
     """
-    # Lấy prompt function
     prompt_func = PROMPT_MAP.get(criteria, PROMPT_MAP["standard"])
     prompt_template = prompt_func()
-    
-    # Format prompt với các biến
+
     context = create_base_context(question, expected, actual, group, time_label)
-    
+
     formatted_prompt = prompt_template.format(
         context=context,
         domain_glossary=DOMAIN_GLOSSARY,
+        group_rules=GROUP_RULES,
         self_consistency=SELF_CONSISTENCY_RULES,
         output_warning=OUTPUT_WARNING,
         confidence_guidelines=CONFIDENCE_GUIDELINES,
         error_severity=ERROR_SEVERITY_GUIDELINES,
         json_output=JSON_OUTPUT_FORMAT
     )
-    
-    # Tạo ChatPromptTemplate
+
     return ChatPromptTemplate.from_messages([
         ("user", formatted_prompt)
     ])

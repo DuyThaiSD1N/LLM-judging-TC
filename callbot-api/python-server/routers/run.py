@@ -140,53 +140,53 @@ async def run_testcases_stream(request: RunTestcasesRequest):
     
     async def event_generator():
         """Generator để stream results"""
-        
-        # Tạo tasks cho tất cả testcases
-        tasks = []
-        for idx, tc in enumerate(request.testcases):
-            turns = [{"question": t.question, "expected": t.expected} for t in tc.turns]
-            
-            async def run_and_yield(index: int, testcase):
-                """Run testcase và yield kết quả"""
-                try:
-                    result = await run_testcase(
-                        code=testcase.code,
-                        name=testcase.name,
-                        group=testcase.group,
-                        turns=turns,
-                        criteria=testcase.criteria
-                    )
-                    
-                    return {
-                        "index": index,
-                        "code": testcase.code,
-                        "name": testcase.name,
-                        "group": testcase.group,
-                        "turns": result["turns"],
-                        "criteria": testcase.criteria,
-                        "status": result["status"],
-                        "error": result.get("error")
-                    }
-                except Exception as e:
-                    return {
-                        "index": index,
-                        "code": testcase.code,
-                        "name": testcase.name,
-                        "group": testcase.group,
-                        "turns": [],
-                        "criteria": testcase.criteria,
-                        "status": "error",
-                        "error": str(e)
-                    }
-            
-            tasks.append(run_and_yield(idx, tc))
-        
+
+        async def run_one(index: int, testcase) -> dict:
+            """
+            Run một testcase và trả về kết quả.
+            turns được tạo bên trong hàm này để tránh closure bug —
+            mỗi coroutine giữ bản sao riêng của turns.
+            """
+            # ⚠️ QUAN TRỌNG: tạo turns ngay tại đây, không dùng biến ngoài
+            tc_turns = [{"question": t.question, "expected": t.expected} for t in testcase.turns]
+            try:
+                result = await run_testcase(
+                    code=testcase.code,
+                    name=testcase.name,
+                    group=testcase.group,
+                    turns=tc_turns,
+                    criteria=testcase.criteria
+                )
+                return {
+                    "index": index,
+                    "code": testcase.code,
+                    "name": testcase.name,
+                    "group": testcase.group,
+                    "turns": result["turns"],
+                    "criteria": testcase.criteria,
+                    "status": result["status"],
+                    "error": result.get("error")
+                }
+            except Exception as e:
+                return {
+                    "index": index,
+                    "code": testcase.code,
+                    "name": testcase.name,
+                    "group": testcase.group,
+                    "turns": [],
+                    "criteria": testcase.criteria,
+                    "status": "error",
+                    "error": str(e)
+                }
+
+        # Tạo tasks — mỗi task giữ bản sao turns riêng
+        tasks = [run_one(idx, tc) for idx, tc in enumerate(request.testcases)]
+
         # Chạy tất cả tasks concurrently và yield khi nào xong
         for coro in asyncio.as_completed(tasks):
             result = await coro
-            # Stream result về client
             yield f"data: {json.dumps(result)}\n\n"
-        
+
         # Signal hoàn thành
         yield "data: {\"done\": true}\n\n"
     

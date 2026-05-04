@@ -4,6 +4,7 @@ Workflow: warmup → run turns → judge → save history
 """
 
 import time
+import uuid
 from typing import Dict, Any, List, TypedDict, Annotated
 from langgraph.graph import StateGraph, END
 from langsmith import traceable
@@ -29,6 +30,9 @@ class TestcaseState(TypedDict):
     group: str
     turns: List[Dict[str, str]]
     criteria: str
+    
+    # Unique conversation ID cho mỗi lần chạy (tránh bot nhớ context cũ)
+    conversation_id: str
     
     # Runtime state
     current_turn_index: int
@@ -96,11 +100,12 @@ async def call_bot(conversation_id: str, message: str) -> Dict[str, Any]:
 async def warmup_node(state: TestcaseState) -> TestcaseState:
     """
     Node 1: Warmup - Gửi "xin chào" để khởi động hội thoại
+    Dùng conversation_id ngẫu nhiên để tránh bot nhớ context từ lần chạy trước
     """
-    print(f"[warmup] {state['code']} → Starting warmup...")
+    print(f"[warmup] {state['code']} → conversation_id={state['conversation_id']}")
     
     try:
-        await call_bot(state["code"], "xin chào")
+        await call_bot(state["conversation_id"], "xin chào")
         print(f"[warmup] {state['code']} → Warmup completed")
     except Exception as e:
         print(f"[warmup] {state['code']} → Warmup failed: {e}")
@@ -139,8 +144,8 @@ async def run_turn_node(state: TestcaseState) -> TestcaseState:
     }
     
     try:
-        # Call bot
-        bot_response = await call_bot(state["code"], turn["question"])
+        # Call bot dùng conversation_id ngẫu nhiên (không phải mã testcase)
+        bot_response = await call_bot(state["conversation_id"], turn["question"])
         turn_result["actual"] = bot_response["answer"]
         turn_result["action"] = bot_response["action"]
         turn_result["response_time_ms"] = bot_response["response_time_ms"]
@@ -192,7 +197,7 @@ async def judge_turn_node(state: TestcaseState) -> TestcaseState:
         
         print(
             f"[judge_turn] {state['code']} turn {turn_index + 1} → "
-            f"{judge_result['verdict']} ({judge_result['total_score']})"
+            f"{judge_result['verdict']}"
         )
         
     except Exception as e:
@@ -317,6 +322,9 @@ async def run_testcase(
         "group": group,
         "turns": turns,
         "criteria": criteria,
+        # Tạo conversation_id ngẫu nhiên mỗi lần chạy
+        # Đảm bảo bot không nhớ context từ lần chạy trước
+        "conversation_id": f"{code}-{uuid.uuid4().hex[:8]}",
         "current_turn_index": 0,
         "turn_results": [],
         "error": ""

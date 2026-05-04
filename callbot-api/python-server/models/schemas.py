@@ -57,16 +57,15 @@ class ErrorDetail(BaseModel):
 
 class JudgeResult(BaseModel):
     """
-    Kết quả đánh giá từ LLM Judge (Phase 2 - 13 trường)
+    Kết quả đánh giá từ LLM Judge - LLM tự đánh giá không dùng scoring
     Sử dụng cho structured output với LangChain
     """
-    # Phase 1: Scoring fields
-    total_score: float = Field(ge=0, le=100, description="Tổng điểm (0-100)")
-    content_score: float = Field(ge=0, le=100, description="Điểm nội dung (0-100)")
-    tone_score: float = Field(ge=0, le=100, description="Điểm giọng điệu (0-100)")
-    time_score: float = Field(ge=0, le=100, description="Điểm thời gian (0-100)")
+    # Main verdict
+    verdict: Literal["PASSED", "FAILED"] = Field(
+        description="Kết quả đánh giá"
+    )
     
-    # Phase 2: Confidence fields
+    # Confidence fields
     confidence_level: float = Field(
         ge=0.0, le=1.0,
         description="Độ tự tin về kết quả (0.0-1.0)"
@@ -77,14 +76,11 @@ class JudgeResult(BaseModel):
     confidence_reason: str = Field(
         description="Giải thích ngắn gọn tại sao confidence ở mức này (1 câu)"
     )
+    
+    # Error details
     errors: List[ErrorDetail] = Field(
         default_factory=list,
         description="Danh sách lỗi (chỉ khi FAILED)"
-    )
-    
-    # Existing fields (backward compatibility)
-    verdict: Literal["PASSED", "FAILED"] = Field(
-        description="Kết quả đánh giá"
     )
     error_desc: str = Field(
         default="",
@@ -98,6 +94,8 @@ class JudgeResult(BaseModel):
         default="",
         description="Mẫu câu trả lời đề xuất (nếu FAILED)"
     )
+    
+    # Notes
     tone_note: str = Field(
         default="",
         description="Nhận xét về giọng điệu"

@@ -54,7 +54,7 @@ def validate_excel_data(rows):
     
     # Validate từng dòng
     valid_groups = ["A", "B", "C", "D"]
-    valid_criteria = ["standard", "strict", "flexible", "content-only", "ux-focused"]
+    valid_criteria = ["standard", "strict", "speed-focused", "content-only", "ux-focused"]
     
     for idx, row in enumerate(data_rows):
         row_num = idx + 2
@@ -79,7 +79,7 @@ def validate_excel_data(rows):
             if criteria_value not in valid_criteria:
                 errors.append(
                     f"Dòng {row_num}: LLM Judge '{criteria}' không hợp lệ. "
-                    f"Chỉ chấp nhận: standard, strict, flexible, content-only, ux-focused"
+                    f"Chỉ chấp nhận: standard, strict, speed-focused, content-only, ux-focused"
                 )
     
     if errors:
@@ -106,7 +106,7 @@ Mỗi testcase gồm:
 - "group": Mã kịch bản, chỉ được là một trong: "A", "B", "C", "D"
 - "question": Câu hỏi từ user
 - "expected": Câu trả lời kỳ vọng
-- "criteria": Tiêu chí LLM Judge (standard/strict/flexible/content-only/ux-focused). Nếu không có thì để "standard"
+- "criteria": Tiêu chí LLM Judge (standard/strict/speed-focused/content-only/ux-focused). Nếu không có thì để "standard"
 
 Nếu một trường không tìm thấy, để chuỗi rỗng "" (trừ criteria thì để "standard").
 Trả về JSON với key "testcases" chứa array các testcase.

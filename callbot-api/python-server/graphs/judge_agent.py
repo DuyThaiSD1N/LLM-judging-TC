@@ -12,7 +12,6 @@ from langsmith import traceable
 
 from models.schemas import JudgeResult
 from prompts.prompt_factory import create_judge_prompt
-from config.criteria_weights import calculate_total_score, determine_verdict
 
 
 # Time thresholds
@@ -92,30 +91,8 @@ class JudgeAgent:
                 chain = prompt | self.llm | self.parser
                 result = await chain.ainvoke({})
                 
-                # Validate và tính toán lại total_score
-                content_score = result.get("content_score", 0)
-                tone_score = result.get("tone_score", 0)
-                time_score = result.get("time_score", 0)
-                
-                # Recalculate total_score using config
-                total_score = calculate_total_score(
-                    criteria, content_score, tone_score, time_score
-                )
-                
-                # Get verdict from LLM first
-                llm_verdict = result.get("verdict", "FAILED")
-                
-                # Verify verdict consistency với total_score
-                expected_verdict = determine_verdict(criteria, total_score)
-                
-                # Nếu LLM verdict khác với expected, log warning nhưng TIN LLM
-                if llm_verdict != expected_verdict:
-                    print(
-                        f"⚠️ Verdict mismatch: LLM={llm_verdict}, Expected={expected_verdict} "
-                        f"(total_score={total_score}). Using LLM verdict."
-                    )
-                
-                verdict = llm_verdict
+                # Get verdict from LLM
+                verdict = result.get("verdict", "FAILED")
                 
                 # Đảm bảo consistency: PASSED không có error_desc
                 error_desc = result.get("error_desc", "")
@@ -141,28 +118,26 @@ class JudgeAgent:
                 # Logging for monitoring
                 print(
                     f"📊 Judge Result [{criteria}]: verdict={verdict}, "
-                    f"total={total_score}, confidence={confidence_level}, "
+                    f"confidence={confidence_level}, "
                     f"needs_review={needs_human_review}"
                 )
                 
                 return {
-                    # Phase 1 fields
-                    "total_score": total_score,
-                    "content_score": content_score,
-                    "tone_score": tone_score,
-                    "time_score": time_score,
+                    # Main verdict
+                    "verdict": verdict,
                     
-                    # Phase 2 fields
+                    # Confidence fields
                     "confidence_level": confidence_level,
                     "needs_human_review": needs_human_review,
                     "confidence_reason": result.get("confidence_reason", ""),
                     "errors": result.get("errors", []),
                     
-                    # Existing fields
-                    "verdict": verdict,
+                    # Error details
                     "error_desc": error_desc,
                     "suggestion": suggestion,
                     "suggested_response": suggested_response,
+                    
+                    # Notes
                     "tone_note": result.get("tone_note", ""),
                     "time_verdict": result.get("time_verdict", time_info["level"]),
                     "time_note": result.get("time_note", time_label),
@@ -194,10 +169,6 @@ class JudgeAgent:
                 # Return fallback response
                 return {
                     "verdict": "FAILED",
-                    "total_score": 0,
-                    "content_score": 0,
-                    "tone_score": 0,
-                    "time_score": 0,
                     "confidence_level": 0.0,
                     "needs_human_review": True,
                     "confidence_reason": "LLM Judge unavailable - API error",
@@ -217,10 +188,6 @@ class JudgeAgent:
         # Should not reach here, but just in case
         return {
             "verdict": "FAILED",
-            "total_score": 0,
-            "content_score": 0,
-            "tone_score": 0,
-            "time_score": 0,
             "confidence_level": 0.0,
             "needs_human_review": True,
             "confidence_reason": "Max retries exceeded",

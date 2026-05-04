@@ -184,7 +184,7 @@ export function renderEval() {
     const criteriaNames = {
       'standard': 'Chuẩn',
       'strict': 'Nghiêm ngặt',
-      'flexible': 'Linh hoạt',
+      'speed-focused': 'Tốc độ',
       'content-only': 'Nội dung',
       'ux-focused': 'Trải nghiệm'
     };

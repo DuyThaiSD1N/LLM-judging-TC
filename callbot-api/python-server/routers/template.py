@@ -31,7 +31,7 @@ async def get_template():
         "Nhóm (A/B/C/D)",
         "Câu hỏi từ User",
         "Câu trả lời kỳ vọng",
-        "LLM Judge (standard/strict/flexible/content-only/ux-focused)"
+        "LLM Judge (standard/strict/speed-focused/content-only/ux-focused)"
     ]
     ws.append(headers)
     
