@@ -33,8 +33,9 @@ def get_standard_prompt() -> str:
 Đặc biệt với nhóm B: nếu bot từ chối + chuyển hướng → PASSED ngay, không cần xét thêm.
 
 **Bước 2: Đánh giá nội dung (chỉ với nhóm A, C, D)**
-- Nội dung có đúng và đủ so với kỳ vọng không? (≥80% là đạt)
-- Không cần giống từng chữ, chỉ cần đúng ý chính
+- Liệt kê các thông tin cốt lõi trong kỳ vọng (giấy tờ, địa điểm, thời gian, lệ phí...)
+- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
+- ≥80% thông tin cốt lõi có mặt → nội dung đạt
 
 **Bước 3: Đánh giá giọng điệu**
 - Có xưng hô phù hợp (anh/chị/em) không?
@@ -81,9 +82,9 @@ def get_strict_prompt() -> str:
 Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED (nhưng vẫn nhận xét chất lượng từ chối).
 
 **Bước 2: Đánh giá nội dung (khắt khe)**
-- Phải có ≥95% thông tin kỳ vọng
-- Không được thiếu bất kỳ chi tiết quan trọng nào
-- Thông tin phải 100% chính xác
+- Liệt kê từng thông tin cốt lõi trong kỳ vọng
+- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
+- Phải có ≥95% thông tin cốt lõi, không được thiếu bất kỳ chi tiết quan trọng nào
 
 **Bước 3: Đánh giá giọng điệu (yêu cầu hoàn hảo)**
 - Phải có xưng hô đúng (anh/chị/em)
@@ -135,9 +136,9 @@ Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED bất kể t
 - >3s: Chậm → cần nội dung rất tốt mới PASSED
 
 **Bước 3: Đánh giá nội dung (chỉ cần đủ tốt)**
-- ≥70% thông tin quan trọng là chấp nhận được
-- Không cần 100% hoàn hảo
-- Ưu tiên trả lời nhanh hơn là chi tiết
+- Liệt kê các thông tin cốt lõi trong kỳ vọng
+- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG")
+- ≥70% thông tin cốt lõi là chấp nhận được, không cần 100% hoàn hảo
 
 **Bước 4: Đánh giá giọng điệu (ít quan trọng)**
 - Có xưng hô hoặc dạ/ạ là được
@@ -179,9 +180,9 @@ def get_content_only_prompt() -> str:
 Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED bất kể giọng điệu hay thời gian.
 
 **Bước 2: Đánh giá nội dung (QUAN TRỌNG NHẤT — DUY NHẤT)**
-- Nội dung có đúng và đủ so với kỳ vọng không?
-- ≥80% thông tin quan trọng → PASSED
-- <80% hoặc sai thông tin → FAILED
+- Liệt kê các thông tin cốt lõi trong kỳ vọng
+- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
+- ≥80% thông tin cốt lõi → PASSED; <80% hoặc sai thông tin → FAILED
 
 **Bước 3: Giọng điệu — BỎ QUA HOÀN TOÀN**
 - Không đánh giá xưng hô, dạ/ạ, tự nhiên
@@ -231,9 +232,9 @@ Với nhóm B: nếu bot từ chối + chuyển hướng lịch sự, thân thi�
 - Có tạo cảm giác thoải mái cho người dùng không?
 
 **Bước 3: Đánh giá nội dung (chỉ cần đủ tốt)**
-- ≥70% thông tin quan trọng là đủ
-- Không cần 100% hoàn hảo
-- Ưu tiên trải nghiệm hơn là chi tiết kỹ thuật
+- Liệt kê các thông tin cốt lõi trong kỳ vọng
+- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG")
+- ≥70% thông tin cốt lõi là đủ, ưu tiên trải nghiệm hơn chi tiết kỹ thuật
 
 **Bước 4: Đánh giá thời gian**
 - ≤3s: Tốt

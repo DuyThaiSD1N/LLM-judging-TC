@@ -7,12 +7,48 @@ from langchain_core.prompts import ChatPromptTemplate
 
 # Domain glossary - dùng chung cho tất cả tiêu chí
 DOMAIN_GLOSSARY = """
-## DOMAIN GLOSSARY
-Các thuật ngữ sau được coi là TƯƠNG ĐƯƠNG khi so sánh nội dung:
-• CMND = CCCD = Căn cước công dân = Chứng minh nhân dân = Thẻ căn cước
-• Giấy xác nhận độc thân = Giấy xác nhận tình trạng hôn nhân = Xác nhận hôn nhân
-• Sổ hộ khẩu = Sổ đăng ký hộ khẩu = Giấy đăng ký thường trú
-• Giấy khai sinh = Bản sao giấy khai sinh = Trích lục khai sinh
+## NGUYÊN TẮC PHÂN TÍCH NỘI DUNG
+
+### 1. So sánh theo Ý NGHĨA, không so sánh từng chữ
+Khi đánh giá, hãy hỏi: "Người dùng nghe câu trả lời này có hiểu đúng và đủ không?"
+Không yêu cầu bot dùng đúng từ ngữ trong kỳ vọng — chỉ cần ý nghĩa tương đương.
+
+### 2. Các cách trình bày TƯƠNG ĐƯƠNG về giấy tờ tùy thân
+• CMND / CCCD / Căn cước công dân / Chứng minh nhân dân / Thẻ căn cước / Giấy tờ tùy thân có ảnh
+→ Nếu kỳ vọng nói "CMND" mà bot nói "CCCD" hoặc "căn cước" → coi là ĐÃ ĐÁP ỨNG
+
+### 3. Các cách trình bày TƯƠNG ĐƯƠNG về giấy tờ hộ khẩu / cư trú
+• Sổ hộ khẩu / Sổ đăng ký hộ khẩu / Giấy đăng ký thường trú / Giấy xác nhận cư trú
+• Giấy tạm trú / Xác nhận tạm trú / Đăng ký tạm trú
+→ Nếu kỳ vọng nói "sổ hộ khẩu" mà bot nói "giấy đăng ký thường trú" → coi là ĐÃ ĐÁP ỨNG
+
+### 4. Các cách trình bày TƯƠNG ĐƯƠNG về giấy tờ hôn nhân / độc thân
+• Giấy xác nhận độc thân / Giấy xác nhận tình trạng hôn nhân / Xác nhận chưa kết hôn
+• Giấy đăng ký kết hôn / Giấy chứng nhận kết hôn
+→ Nếu kỳ vọng nói "xác nhận độc thân" mà bot nói "xác nhận tình trạng hôn nhân" → coi là ĐÃ ĐÁP ỨNG
+
+### 5. Các cách trình bày TƯƠNG ĐƯƠNG về giấy khai sinh
+• Giấy khai sinh / Bản sao giấy khai sinh / Trích lục khai sinh / Bản sao trích lục khai sinh
+
+### 6. Các cách trình bày TƯƠNG ĐƯƠNG về địa điểm nộp hồ sơ
+• UBND cấp xã / UBND phường / UBND xã / UBND thị trấn / Ủy ban nhân dân xã/phường/thị trấn
+• UBND cấp huyện / UBND quận / UBND huyện / UBND thị xã / Phòng Tư pháp cấp huyện
+• Bộ phận một cửa / Bộ phận tiếp nhận hồ sơ / Văn phòng một cửa / Trung tâm hành chính công
+→ Nếu kỳ vọng nói "UBND cấp xã" mà bot nói "UBND phường" → coi là ĐÃ ĐÁP ỨNG
+
+### 7. Các cách trình bày TƯƠNG ĐƯƠNG về lệ phí
+• Miễn phí / Không mất phí / Không thu phí / Lệ phí: 0 đồng / Không có lệ phí
+→ Nếu kỳ vọng nói "miễn phí" mà bot nói "không thu phí" → coi là ĐÃ ĐÁP ỨNG
+
+### 8. Các cách trình bày TƯƠNG ĐƯƠNG về thời gian xử lý
+• "X ngày làm việc" = "X ngày" (trong ngữ cảnh hành chính)
+• "Trong ngày" = "Ngay trong buổi" = "Không quá 1 ngày làm việc"
+
+### 9. Cách trình bày LINH HOẠT được chấp nhận
+• Bot có thể dùng từ đồng nghĩa, cách diễn đạt khác nhau miễn thông tin đúng
+• Bot có thể trình bày theo dạng liệt kê hoặc văn xuôi — đều hợp lệ
+• Bot có thể thêm thông tin bổ sung hữu ích (không sai) — không bị trừ điểm
+• Bot có thể bỏ qua thông tin thứ yếu nếu thông tin cốt lõi đã đủ
 """
 
 
@@ -22,8 +58,9 @@ GROUP_RULES = """
 
 ### NHÓM A — Hỏi đầy đủ thông tin
 Bot phải cung cấp đúng và đủ thông tin về thủ tục hành chính.
-- PASSED: Nội dung trả lời khớp với kỳ vọng (không cần giống từng chữ, chỉ cần đúng ý)
-- FAILED: Thiếu thông tin quan trọng, sai thông tin, hoặc bịa thông tin
+- PASSED: Các thông tin cốt lõi trong kỳ vọng đều có trong câu trả lời thực tế
+  (áp dụng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
+- FAILED: Thiếu thông tin quan trọng, sai thông tin, hoặc bịa thông tin không có cơ sở
 
 ### NHÓM B — Hỏi ngoài phạm vi / ngoại lệ
 Bot phải TỪ CHỐI và CHUYỂN HƯỚNG về hành chính công.
@@ -155,8 +192,15 @@ def create_base_context(
     """Create base context section"""
     return f"""## CONTEXT
 Nhóm: {group} — {get_group_desc(group)}
-Câu hỏi: "{question}"
-Kỳ vọng (hành vi mong muốn, không phải mẫu câu bắt buộc): "{expected}"
-Thực tế (câu trả lời của bot cần đánh giá): "{actual}"
+Câu hỏi của người dùng: "{question}"
+Kỳ vọng (hành vi/nội dung mong muốn — KHÔNG phải mẫu câu bắt buộc): "{expected}"
+Câu trả lời thực tế của bot (đây là thứ cần đánh giá): "{actual}"
 Thời gian phản hồi: {time_label}
+
+## HƯỚNG DẪN PHÂN TÍCH
+Khi so sánh "Kỳ vọng" và "Thực tế":
+1. Trích xuất các THÔNG TIN CỐT LÕI từ kỳ vọng (giấy tờ cần có, địa điểm, thời gian, lệ phí...)
+2. Kiểm tra từng thông tin cốt lõi đó có xuất hiện trong câu trả lời thực tế không
+3. Áp dụng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết các cách trình bày tương đương
+4. Kết luận: bao nhiêu % thông tin cốt lõi đã được đáp ứng?
 """
