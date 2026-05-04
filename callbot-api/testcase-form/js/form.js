@@ -52,6 +52,57 @@ export function initForm() {
     initGroupDropdown();
     document.getElementById('btn-add').addEventListener('click', handleAdd);
     document.getElementById('btn-reset').addEventListener('click', handleReset);
+
+    // Listen for edit event from table
+    window.addEventListener('edit-testcase', (e) => {
+        loadTestcaseToForm(e.detail.index, e.detail.testcase);
+    });
+}
+
+let editingIndex = null;
+
+function loadTestcaseToForm(index, tc) {
+    editingIndex = index;
+
+    // Populate form
+    document.getElementById('tc-name').value = tc.name;
+    document.getElementById('tc-code').value = tc.code;
+
+    // Set group
+    const groupRadio = document.querySelector(`input[name="group"][value="${tc.group}"]`);
+    if (groupRadio) {
+        groupRadio.checked = true;
+        const meta = GROUP_META[tc.group];
+        document.getElementById('group-selected-display').innerHTML = `
+            <span class="trigger-selected">
+                <span class="group-badge badge-${tc.group}" style="width:20px;height:20px;font-size:0.7rem;border-radius:5px;">${tc.group}</span>
+                <span style="font-size:0.85rem;">${meta.label}</span>
+            </span>`;
+    }
+
+    // Set questions and expected
+    const questions = tc.turns.map(t => t.question).join('\n');
+    const expecteds = tc.turns.map(t => t.expected).join('\n');
+    document.getElementById('tc-question').value = questions;
+    document.getElementById('tc-expected').value = expecteds;
+
+    // Set criteria
+    const criteriaRadio = document.querySelector(`input[name="criteria"][value="${tc.criteria}"]`);
+    if (criteriaRadio) {
+        criteriaRadio.checked = true;
+        // Trigger change event to update display
+        criteriaRadio.dispatchEvent(new Event('change'));
+    }
+
+    // Change button text
+    const btnAdd = document.getElementById('btn-add');
+    btnAdd.textContent = '💾 Cập nhật Testcase';
+    btnAdd.classList.add('btn-editing');
+
+    // Scroll to form
+    document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    showToast(`Đang chỉnh sửa testcase "${tc.code}"`, 'info');
 }
 
 function handleAdd() {
@@ -76,15 +127,26 @@ function handleAdd() {
 
     const turns = questions.map((q, i) => ({ question: q, expected: expecteds[i] }));
     const criteria = getSelectedCriteria();
-    addTestcase({ name, code, group, turns, criteria });
-    resetForm();
 
-    // Thông báo đẹp hơn
-    const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
-    showToast(`Đã thêm testcase "${name}" với ${turnText}`, 'success');
+    if (editingIndex !== null) {
+        // Update existing testcase
+        import('./table.js').then(({ updateTestcase }) => {
+            updateTestcase(editingIndex, { name, code, group, turns, criteria });
+            resetForm();
+            const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
+            showToast(`✅ Đã cập nhật testcase "${name}" với ${turnText}`, 'success');
+        });
+    } else {
+        // Add new testcase
+        addTestcase({ name, code, group, turns, criteria });
+        resetForm();
+        const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
+        showToast(`✅ Đã thêm testcase "${name}" với ${turnText}`, 'success');
+    }
 }
 
 export function resetForm() {
+    editingIndex = null;
     document.getElementById('tc-name').value = '';
     document.getElementById('tc-code').value = '';
     document.getElementById('tc-question').value = '';
@@ -92,15 +154,14 @@ export function resetForm() {
     document.querySelectorAll('input[name="group"]').forEach(el => el.checked = false);
     document.getElementById('group-selected-display').innerHTML =
         '<span class="trigger-placeholder">Chọn nhóm...</span>';
+
+    // Reset button text
+    const btnAdd = document.getElementById('btn-add');
+    btnAdd.textContent = '+ Thêm Testcase';
+    btnAdd.classList.remove('btn-editing');
 }
 
 function handleReset() {
-    // Import hàm clearAllTestcases từ table.js
-    import('./table.js').then(({ clearAllTestcases }) => {
-        if (confirm('Bạn có chắc muốn xóa tất cả testcase?')) {
-            clearAllTestcases();
-            resetForm();
-            showToast('Đã xóa tất cả testcase', 'info');
-        }
-    });
+    resetForm();
+    showToast('Đã xóa nội dung form', 'info');
 }

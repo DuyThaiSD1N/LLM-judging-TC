@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LLM Judge Testcase</title>
+    <title>Chatbot Quality Assurance</title>
     <link rel="stylesheet" href="css/style.css?v=2" />
 </head>
 
@@ -13,8 +13,8 @@
     <!-- ── TOP NAV ── -->
     <nav class="topnav">
         <div class="topnav-brand">
-            <span class="brand-icon">🤖</span>
-            <span class="brand-name">LLM Judge <span class="brand-sub">Testcase</span></span>
+            <span class="brand-icon">✓</span>
+            <span class="brand-name">Chatbot <span class="brand-sub">Quality Assurance</span></span>
         </div>
         <div class="topnav-actions">
             <button id="btn-history" class="btn-history">
@@ -153,7 +153,10 @@
         <section class="table-section">
             <div class="table-section-header">
                 <h2 class="section-title-lg">Đánh giá Testcase</h2>
-                <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả testcase</button>
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-clear-all" class="btn btn-danger">🗑 Xóa tất cả</button>
+                    <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả testcase</button>
+                </div>
             </div>
 
             <!-- Filter Section -->

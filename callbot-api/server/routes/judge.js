@@ -9,6 +9,9 @@ const flexiblePrompt = require('../prompts/flexible');
 const contentOnlyPrompt = require('../prompts/content-only');
 const uxFocusedPrompt = require('../prompts/ux-focused');
 
+// Phase 3: Import configuration system
+const { getCriteriaConfig, calculateTotalScore, determineVerdict } = require('../config/criteria-weights');
+
 const CRITERIA_MAP = {
     standard: standardPrompt,
     strict: strictPrompt,
@@ -51,20 +54,6 @@ const GROUP_DESC = {
     D: 'Hỏi tài liệu không có trong CSDL — bot phải thừa nhận không có thông tin và hướng dẫn đến văn phòng 1 cửa, tuyệt đối không bịa.',
 };
 
-const GREETING_PATTERNS = [
-    /em chào anh/i,
-    /em chào chị/i,
-    /xin chào/i,
-    /tổng đài.*hành chính/i,
-    /hành chính công.*tỉnh/i,
-    /em có thể hỗ trợ gì/i,
-    /em có thể giúp gì/i,
-];
-
-function isGreetingResponse(text) {
-    return GREETING_PATTERNS.some(p => p.test(text));
-}
-
 function classifyTime(ms) {
     if (ms <= TIME_THRESHOLD.GOOD) return { label: 'Nhanh', level: 'good' };
     if (ms <= TIME_THRESHOLD.OK) return { label: 'Chấp nhận được', level: 'ok' };
@@ -73,23 +62,27 @@ function classifyTime(ms) {
 
 /**
  * Đánh giá nội dung + thời gian phản hồi
- * Trả về null nếu là câu chào mở đầu
  *
  * @param {string} criteria - Tiêu chí đánh giá: standard, strict, flexible, content-only, ux-focused
  * @returns {{
  *   verdict: 'PASSED'|'FAILED',
+ *   total_score: number,
+ *   content_score: number,
+ *   tone_score: number,
+ *   time_score: number,
+ *   confidence_level: number,
+ *   needs_human_review: boolean,
+ *   confidence_reason: string,
+ *   errors: array,
  *   error_desc: string,
  *   suggestion: string,
  *   suggested_response: string,
  *   tone_note: string,
- *   brevity_note: string,
  *   time_verdict: 'good'|'ok'|'slow',
  *   time_note: string
- * } | null}
+ * }}
  */
 async function judgeOne({ question, expected, actual, group, responseTimeMs, criteria = 'standard' }) {
-    if (isGreetingResponse(actual)) return null;
-
     const timeInfo = classifyTime(responseTimeMs ?? 0);
     const timeLabel = `${responseTimeMs}ms (${timeInfo.label})`;
 
@@ -103,24 +96,110 @@ async function judgeOne({ question, expected, actual, group, responseTimeMs, cri
         actual,
         group,
         groupDesc,
-        timeLabel
+        timeLabel,
+        criteria  // Pass criteria to prompt for Phase 3 weight info
     });
 
-    const response = await getOpenAI().chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-    });
+    // Phase 3 - Req 19: Error Handling với retry logic
+    let response;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 5000;
+
+    while (retryCount < MAX_RETRIES) {
+        try {
+            response = await getOpenAI().chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: prompt }],
+                response_format: { type: 'json_object' },
+                temperature: 0.1,
+            });
+            break; // Success, exit retry loop
+        } catch (error) {
+            retryCount++;
+
+            // Rate limit error - wait and retry
+            if (error.status === 429 && retryCount < MAX_RETRIES) {
+                console.warn(`⚠️ OpenAI rate limit hit, retrying in ${RETRY_DELAY_MS}ms (attempt ${retryCount}/${MAX_RETRIES})`);
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                continue;
+            }
+
+            // Timeout error - retry immediately
+            if (error.code === 'ETIMEDOUT' && retryCount < 2) {
+                console.warn(`⚠️ OpenAI timeout, retrying immediately (attempt ${retryCount}/2)`);
+                continue;
+            }
+
+            // Invalid request or max retries reached
+            console.error(`❌ OpenAI API error after ${retryCount} attempts:`, error.message);
+
+            // Return fallback response
+            return {
+                verdict: 'FAILED',
+                total_score: 0,
+                content_score: 0,
+                tone_score: 0,
+                time_score: 0,
+                confidence_level: 0.0,
+                needs_human_review: true,
+                confidence_reason: 'LLM Judge unavailable - API error',
+                errors: [{
+                    description: `LLM Judge unavailable: ${error.message}`,
+                    severity: 'Critical',
+                    quote: ''
+                }],
+                error_desc: `LLM Judge unavailable: ${error.message}`,
+                suggestion: 'Please retry later or contact support',
+                suggested_response: '',
+                tone_note: '',
+                time_verdict: timeInfo.level,
+                time_note: timeLabel,
+            };
+        }
+    }
 
     const parsed = JSON.parse(response.choices[0].message.content);
+
+    // Phase 1: Extract scoring fields
+    const contentScore = parsed.content_score ?? 0;
+    const toneScore = parsed.tone_score ?? 0;
+    const timeScore = parsed.time_score ?? 0;
+
+    // Phase 3: Calculate total_score using configuration
+    const totalScore = calculateTotalScore(criteria, contentScore, toneScore, timeScore);
+
+    // Phase 3: Determine verdict using configuration threshold
+    const verdict = determineVerdict(criteria, totalScore);
+
+    // Phase 2: Extract confidence and error severity fields
+    const confidenceLevel = parsed.confidence_level ?? null;
+    const needsHumanReview = parsed.needs_human_review ?? (confidenceLevel !== null && confidenceLevel < 0.7);
+    const confidenceReason = parsed.confidence_reason ?? '';
+    const errors = parsed.errors ?? [];
+
+    // Phase 3 - Req 18: Logging for monitoring
+    console.log(`📊 Judge Result [${criteria}]: verdict=${verdict}, total=${totalScore}, confidence=${confidenceLevel}, needs_review=${needsHumanReview}`);
+
     return {
-        verdict: ['PASSED', 'FAILED'].includes(parsed.verdict) ? parsed.verdict : 'FAILED',
+        // Phase 1 fields
+        total_score: totalScore,
+        content_score: contentScore,
+        tone_score: toneScore,
+        time_score: timeScore,
+
+        // Phase 2 fields
+        confidence_level: confidenceLevel,
+        needs_human_review: needsHumanReview,
+        confidence_reason: confidenceReason,
+        errors: errors,
+
+        // Existing fields (backward compatibility)
+        verdict: verdict,
         error_desc: parsed.error_desc ?? '',
         suggestion: parsed.suggestion ?? '',
         suggested_response: parsed.suggested_response ?? '',
         tone_note: parsed.tone_note ?? '',
-        brevity_note: parsed.brevity_note ?? '',
         time_verdict: ['good', 'ok', 'slow'].includes(parsed.time_verdict)
             ? parsed.time_verdict : timeInfo.level,
         time_note: parsed.time_note ?? timeLabel,

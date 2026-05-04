@@ -29,8 +29,7 @@ router.post('/export', (req, res) => {
         'Lỗi',
         'Đề xuất sửa',
         'Mẫu đề xuất',
-        'Nhận xét giọng điệu',
-        'Nhận xét độ ngắn gọn'
+        'Nhận xét giọng điệu'
     ];
     rows.push(headers);
 
@@ -60,8 +59,7 @@ router.post('/export', (req, res) => {
                 turn.error_desc || '',
                 turn.suggestion || '',
                 turn.suggested_response || '',
-                turn.tone_note || '',
-                turn.brevity_note || ''
+                turn.tone_note || ''
             ];
             rows.push(row);
         });
@@ -84,12 +82,11 @@ router.post('/export', (req, res) => {
         { wch: 40 },  // Lỗi
         { wch: 40 },  // Đề xuất
         { wch: 40 },  // Mẫu
-        { wch: 40 },  // Giọng điệu
-        { wch: 40 }   // Độ ngắn gọn
+        { wch: 40 }   // Giọng điệu
     ];
 
     // Style cho header (row 1)
-    const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1'];
+    const headerCells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1'];
     headerCells.forEach(ref => {
         if (!ws[ref]) return;
         ws[ref].s = {

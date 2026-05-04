@@ -108,7 +108,7 @@ async function loadHistory() {
                 </div>
                 <div class="history-details">
                     ${run.details.map((turn, i) => `
-                        <div class="turn-detail ${turn.verdict === 'PASS' ? 'pass' : 'fail'}">
+                        <div class="turn-detail ${turn.verdict === 'PASSED' ? 'pass' : 'fail'}">
                             <div class="turn-header">Lượt ${i + 1} - ${turn.verdict || 'N/A'}</div>
                             <div class="turn-row">
                                 <div class="turn-label">Câu hỏi:</div>
@@ -185,7 +185,7 @@ function groupHistoryByRun(history) {
 
         const run = runMap.get(key);
         run.turns++;
-        if (item.verdict === 'PASS') run.passed++;
+        if (item.verdict === 'PASSED') run.passed++;
         if (item.response_time_ms) run.total_time += item.response_time_ms;
         run.details.push(item);
     });

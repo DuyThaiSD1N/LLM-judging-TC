@@ -3,11 +3,12 @@
 import { initForm } from './form.js';
 import { initUpload } from './upload.js';
 import { initRunner, runSingle } from './runner.js';
-import { renderEval, setRunSingleFn } from './table.js';
+import { renderEval, setRunSingleFn, clearAllTestcases } from './table.js';
 import { initHistory } from './history.js';
 import { initCriteria } from './criteria.js';
 import { initExport } from './export.js';
 import { initFilter } from './filter.js';
+import { showToast } from './toast.js';
 import { API_ENDPOINTS, API_KEY } from './config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -23,6 +24,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     initFilter();
 
     renderEval();
+
+    // Xóa tất cả testcase
+    document.getElementById('btn-clear-all').addEventListener('click', () => {
+        if (confirm('⚠️ Bạn có chắc muốn xóa TẤT CẢ testcase?\n\nHành động này không thể hoàn tác!')) {
+            clearAllTestcases();
+            showToast('🗑 Đã xóa tất cả testcase', 'success');
+        }
+    });
 
     // Download Excel mẫu
     document.getElementById('btn-template').addEventListener('click', async () => {

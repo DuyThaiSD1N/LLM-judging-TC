@@ -34,8 +34,8 @@ class History {
             INSERT INTO history (
                 testcase_id, turn_number, question, expected, actual, action,
                 response_time_ms, verdict, error_desc, suggestion, suggested_response,
-                tone_note, brevity_note, time_verdict, time_note, criteria, error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                tone_note, time_verdict, time_note, criteria, error
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         turnResults.forEach((turn, index) => {
@@ -52,7 +52,6 @@ class History {
                 turn.suggestion || null,
                 turn.suggested_response || null,
                 turn.tone_note || null,
-                turn.brevity_note || null,
                 turn.time_verdict || null,
                 turn.time_note || null,
                 criteria,
@@ -94,8 +93,8 @@ class History {
     // Thống kê tổng quan
     static getStats() {
         const total = db.prepare('SELECT COUNT(*) as count FROM history').get();
-        const passed = db.prepare("SELECT COUNT(*) as count FROM history WHERE verdict = 'PASS'").get();
-        const failed = db.prepare("SELECT COUNT(*) as count FROM history WHERE verdict = 'FAIL'").get();
+        const passed = db.prepare("SELECT COUNT(*) as count FROM history WHERE verdict = 'PASSED'").get();
+        const failed = db.prepare("SELECT COUNT(*) as count FROM history WHERE verdict = 'FAILED'").get();
 
         const avgTime = db.prepare(`
             SELECT AVG(response_time_ms) as avg_time 

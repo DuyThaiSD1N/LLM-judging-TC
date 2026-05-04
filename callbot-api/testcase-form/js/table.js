@@ -1,12 +1,19 @@
 // table.js — quản lý state testcases (multi-turn) và render bảng đánh giá
 
 import { filterTestcases } from './filter.js';
+import { getIsRunning } from './state.js';
 
 let testcases = [];
 let _runSingleFn = null;
+let selectedIndices = new Set();
 
 export function setRunSingleFn(fn) { _runSingleFn = fn; }
 export function getTestcases() { return testcases; }
+export function getSelectedIndices() { return Array.from(selectedIndices); }
+export function clearSelection() {
+  selectedIndices.clear();
+  renderEval();
+}
 
 export function addTestcase(tc) {
   testcases.push(initRow(tc));
@@ -20,12 +27,90 @@ export function addBulkTestcases(list) {
 
 export function deleteTestcase(idx) {
   testcases.splice(idx, 1);
+  selectedIndices.clear(); // Clear selection after delete
+  renderEval();
+}
+
+export function deleteBulk(indices) {
+  // Sort descending to delete from end to start
+  indices.sort((a, b) => b - a);
+  indices.forEach(idx => testcases.splice(idx, 1));
+  selectedIndices.clear();
   renderEval();
 }
 
 export function clearAllTestcases() {
   testcases = [];
   renderEval();
+}
+
+export function updateTestcase(idx, updatedTc) {
+  if (!testcases[idx]) return;
+  testcases[idx] = initRow(updatedTc);
+  renderEval();
+}
+
+function editTestcase(idx) {
+  const tc = testcases[idx];
+  if (!tc) return;
+
+  // Dispatch custom event để form.js xử lý
+  window.dispatchEvent(new CustomEvent('edit-testcase', {
+    detail: { index: idx, testcase: tc }
+  }));
+}
+
+function duplicateTestcase(idx) {
+  const tc = testcases[idx];
+  if (!tc) return;
+
+  // Tạo bản sao với mã mới
+  const newCode = generateDuplicateCode(tc.code);
+  const duplicated = {
+    code: newCode,
+    name: tc.name + ' (copy)',
+    group: tc.group,
+    criteria: tc.criteria,
+    turns: tc.turns.map(t => ({
+      question: t.question,
+      expected: t.expected
+    }))
+  };
+
+  testcases.push(initRow(duplicated));
+  renderEval();
+
+  // Scroll to bottom
+  setTimeout(() => {
+    const table = document.querySelector('.table-wrap');
+    if (table) table.scrollTop = table.scrollHeight;
+  }, 100);
+}
+
+function generateDuplicateCode(originalCode) {
+  // Tìm số lớn nhất trong các mã hiện có
+  const codePattern = /^(.+?)(\d+)$/;
+  const match = originalCode.match(codePattern);
+
+  if (!match) {
+    // Nếu không có số, thêm -1
+    return originalCode + '-1';
+  }
+
+  const prefix = match[1];
+  const num = parseInt(match[2]);
+
+  // Tìm số lớn nhất với cùng prefix
+  let maxNum = num;
+  testcases.forEach(tc => {
+    const tcMatch = tc.code.match(codePattern);
+    if (tcMatch && tcMatch[1] === prefix) {
+      const tcNum = parseInt(tcMatch[2]);
+      if (tcNum > maxNum) maxNum = tcNum;
+    }
+  });
+
+  return prefix + (maxNum + 1);
 }
 
 export function setTurnResult(tcIdx, turnIdx, fields) {
@@ -65,7 +150,6 @@ function initRow(tc) {
       suggestion: '',
       suggested_response: '',
       tone_note: '',
-      brevity_note: '',
       time_verdict: null,
       time_note: '',
     })),
@@ -123,7 +207,14 @@ export function renderEval() {
 
     return tc.turns.map((turn, j) => {
       const isFirst = j === 0;
+      const isSelected = selectedIndices.has(i);
+      const rowClass = isFirst ? 'tc-first-row' : 'tc-sub-row';
+      const selectedClass = isSelected ? 'row-selected' : '';
+
       const tcCells = isFirst ? `
+        <td class="col-checkbox" rowspan="${turnCount}">
+          <input type="checkbox" class="tc-checkbox" data-idx="${i}" ${isSelected ? 'checked' : ''} />
+        </td>
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
         <td class="col-name" rowspan="${turnCount}">${tc.name}</td>
@@ -133,11 +224,13 @@ export function renderEval() {
       const actionCell = isFirst ? `
         <td class="col-actions" rowspan="${turnCount}">
           <button class="btn-run-one" data-idx="${i}" title="Chạy testcase này">▶</button>
+          <button class="btn-edit"    data-idx="${i}" title="Sửa">✏️</button>
+          <button class="btn-duplicate" data-idx="${i}" title="Nhân bản">📋</button>
           <button class="btn-del"     data-idx="${i}" title="Xóa">🗑</button>
         </td>` : '';
 
       return `
-        <tr class="${isFirst ? 'tc-first-row' : 'tc-sub-row'}">
+        <tr class="${rowClass} ${selectedClass}">
           ${tcCells}
           <td class="col-turn-num">Lượt ${j + 1}</td>
           <td class="col-q">${turn.question}</td>
@@ -157,6 +250,9 @@ export function renderEval() {
       <table>
         <thead>
           <tr>
+            <th style="width:40px;">
+              <input type="checkbox" id="select-all-checkbox" title="Chọn tất cả" />
+            </th>
             <th>#</th>
             <th>Mã TC</th>
             <th>Tên Testcase</th>
@@ -177,11 +273,52 @@ export function renderEval() {
       </table>
     </div>`;
 
+  // Bulk action bar
+  updateBulkActionBar();
+
+  // Event listeners
+  document.getElementById('select-all-checkbox')?.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      filteredTestcases.forEach((_, i) => selectedIndices.add(i));
+    } else {
+      selectedIndices.clear();
+    }
+    renderEval();
+  });
+
+  container.querySelectorAll('.tc-checkbox').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const idx = Number(e.target.dataset.idx);
+      if (e.target.checked) {
+        selectedIndices.add(idx);
+      } else {
+        selectedIndices.delete(idx);
+      }
+      renderEval();
+    });
+  });
+
   container.querySelectorAll('.btn-del').forEach(btn =>
     btn.addEventListener('click', () => deleteTestcase(Number(btn.dataset.idx))));
 
   container.querySelectorAll('.btn-run-one').forEach(btn =>
     btn.addEventListener('click', () => _runSingleFn?.(Number(btn.dataset.idx))));
+
+  container.querySelectorAll('.btn-edit').forEach(btn =>
+    btn.addEventListener('click', () => editTestcase(Number(btn.dataset.idx))));
+
+  container.querySelectorAll('.btn-duplicate').forEach(btn =>
+    btn.addEventListener('click', () => duplicateTestcase(Number(btn.dataset.idx))));
+
+  // Disable buttons if running
+  const running = getIsRunning();
+  if (running) {
+    container.querySelectorAll('.btn-edit, .btn-del, .btn-run-one, .btn-duplicate').forEach(el => {
+      el.disabled = true;
+      el.style.opacity = '0.5';
+      el.style.cursor = 'not-allowed';
+    });
+  }
 }
 
 // ── Cell renderers ────────────────────────────────────────────────────────
@@ -212,8 +349,9 @@ function renderTime(turn, tcStatus) {
 function renderVerdict(turn, tcStatus) {
   if (tcStatus === 'pending') return '<span class="cell-empty">—</span>';
   if (tcStatus === 'running' && turn.verdict === null) return '<span class="spinner-inline"></span>';
+  if (tcStatus === 'error') return '<span class="verdict-fail">✕ Lỗi</span>';
   if (turn.actual === null) return '<span class="cell-empty">—</span>';
-  if (!turn.verdict) return '<span class="verdict-skip">⏭ Bỏ qua</span>';
+  if (!turn.verdict) return '<span class="verdict-fail">✕ Lỗi đánh giá</span>';
 
   return turn.verdict === 'PASSED'
     ? '<span class="verdict-pass">✓ PASSED</span>'
@@ -233,6 +371,62 @@ function renderSuggestion(turn, tcStatus) {
     parts.push(`<div class="judge-text suggested-response-text" style="margin-top:8px;padding:10px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:6px;color:#15803d;line-height:1.6;">📝 <strong>Mẫu đề xuất:</strong><br/>${turn.suggested_response}</div>`);
   }
   if (turn.tone_note) parts.push(`<div class="judge-text tone-text">🎙 ${turn.tone_note}</div>`);
-  if (turn.brevity_note) parts.push(`<div class="judge-text brevity-text">✂️ ${turn.brevity_note}</div>`);
   return parts.length ? parts.join('') : '<span class="cell-empty">—</span>';
 }
+
+// ── Bulk Actions ──────────────────────────────────────────────────────────
+function updateBulkActionBar() {
+  const count = selectedIndices.size;
+  let bar = document.getElementById('bulk-action-bar');
+
+  if (count === 0) {
+    if (bar) bar.remove();
+    return;
+  }
+
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'bulk-action-bar';
+    bar.className = 'bulk-action-bar';
+    document.querySelector('.table-section').insertBefore(bar, document.getElementById('table-container'));
+  }
+
+  bar.innerHTML = `
+    <div class="bulk-info">
+      <span class="bulk-count">${count}</span> testcase được chọn
+    </div>
+    <div class="bulk-actions">
+      <button id="bulk-run" class="btn-bulk btn-bulk-run">▶ Chạy đã chọn</button>
+      <button id="bulk-delete" class="btn-bulk btn-bulk-delete">🗑 Xóa đã chọn</button>
+      <button id="bulk-clear" class="btn-bulk btn-bulk-clear">✕ Bỏ chọn</button>
+    </div>
+  `;
+
+  document.getElementById('bulk-run')?.addEventListener('click', handleBulkRun);
+  document.getElementById('bulk-delete')?.addEventListener('click', handleBulkDelete);
+  document.getElementById('bulk-clear')?.addEventListener('click', () => {
+    selectedIndices.clear();
+    renderEval();
+  });
+}
+
+function handleBulkRun() {
+  const indices = Array.from(selectedIndices);
+  if (indices.length === 0) return;
+
+  // Dispatch event for runner to handle
+  window.dispatchEvent(new CustomEvent('bulk-run', { detail: { indices } }));
+}
+
+function handleBulkDelete() {
+  const count = selectedIndices.size;
+  if (count === 0) return;
+
+  if (confirm(`Bạn có chắc muốn xóa ${count} testcase đã chọn?`)) {
+    deleteBulk(Array.from(selectedIndices));
+    import('./toast.js').then(({ showToast }) => {
+      showToast(`🗑 Đã xóa ${count} testcase`, 'success');
+    });
+  }
+}
+
