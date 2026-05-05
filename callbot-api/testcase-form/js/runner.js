@@ -1,6 +1,6 @@
 // runner.js — chạy multi-turn testcase + nhận kết quả LLM judge
 
-import { getTestcases, setTurnResult, setTcStatus, renderEval } from './table.js';
+import { getTestcases, setTurnResult, setTcStatus, resetTurnData, renderEval } from './table.js';
 import { showToast } from './toast.js';
 import { API_ENDPOINTS, getAuthHeaders } from './config.js';
 import { setRunning, getIsRunning } from './state.js';
@@ -76,11 +76,14 @@ function applyTurnResults(tcIdx, turnResults) {
             action: r.action,
             response_time_ms: r.response_time_ms,
             verdict: r.verdict,
-            error_desc: r.error_desc,
-            suggestion: r.suggestion,
+            reasoning: r.reasoning || '',
+            error_desc: r.error_desc || '',
+            suggestion: r.suggestion || '',
+            suggested_response: r.suggested_response || '',
+            tone_note: r.tone_note || '',
             time_verdict: r.time_verdict,
-            time_note: r.time_note,
-            error: r.error,
+            time_note: r.time_note || '',
+            error: r.error || '',
         });
     });
 }
@@ -99,7 +102,10 @@ async function runAll() {
     }
 
     setUIRunning(true);
-    testcases.forEach((_, i) => setTcStatus(i, 'running'));
+    testcases.forEach((_, i) => {
+        resetTurnData(i);      // xóa kết quả cũ → spinner hiện đúng
+        setTcStatus(i, 'running');
+    });
     renderEval(); // ← Render ngay để hiển thị spinner
 
     try {
@@ -186,6 +192,7 @@ export async function runSingle(idx) {
     }
 
     setUIRunning(true);
+    resetTurnData(idx);        // xóa kết quả cũ → spinner hiện đúng
     setTcStatus(idx, 'running');
     renderEval(); // ← Render ngay để hiển thị spinner
 
@@ -237,7 +244,10 @@ async function runBulk(indices) {
     }
 
     setUIRunning(true);
-    indices.forEach(i => setTcStatus(i, 'running'));
+    indices.forEach(i => {
+        resetTurnData(i);      // xóa kết quả cũ → spinner hiện đúng
+        setTcStatus(i, 'running');
+    });
     renderEval(); // ← Render ngay để hiển thị spinner
 
     try {

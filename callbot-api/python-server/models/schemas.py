@@ -57,9 +57,14 @@ class ErrorDetail(BaseModel):
 
 class JudgeResult(BaseModel):
     """
-    Kết quả đánh giá từ LLM Judge - LLM tự đánh giá không dùng scoring
-    Sử dụng cho structured output với LangChain
+    Kết quả đánh giá từ LLM Judge - LLM tự đánh giá với Chain-of-Thought
     """
+    # Chain-of-Thought reasoning (bắt buộc)
+    reasoning: str = Field(
+        default="",
+        description="Toàn bộ suy luận CoT trước khi ra verdict"
+    )
+
     # Main verdict
     verdict: Literal["PASSED", "FAILED"] = Field(
         description="Kết quả đánh giá"
@@ -121,6 +126,7 @@ class TurnResult(BaseModel):
     action: str = ""
     response_time_ms: Optional[int] = None
     verdict: Optional[str] = None
+    reasoning: str = ""          # CoT reasoning từ LLM Judge
     error_desc: str = ""
     suggestion: str = ""
     suggested_response: str = ""
@@ -128,8 +134,8 @@ class TurnResult(BaseModel):
     time_verdict: Optional[str] = None
     time_note: str = ""
     error: str = ""
-    
-    # Phase 2 fields
+
+    # Confidence fields
     confidence_level: Optional[float] = None
     needs_human_review: Optional[bool] = None
     confidence_reason: str = ""

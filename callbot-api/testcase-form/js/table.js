@@ -111,6 +111,27 @@ export function setTcStatus(tcIdx, status, error = '') {
   testcases[tcIdx].error = error;
 }
 
+// Reset turn data về trạng thái ban đầu (giữ question/expected, xóa kết quả cũ)
+export function resetTurnData(tcIdx) {
+  const tc = testcases[tcIdx];
+  if (!tc) return;
+  tc.turns = tc.turns.map(t => ({
+    question: t.question,
+    expected: t.expected,
+    actual: null,
+    action: '',
+    response_time_ms: null,
+    verdict: null,
+    reasoning: '',
+    error_desc: '',
+    suggestion: '',
+    suggested_response: '',
+    tone_note: '',
+    time_verdict: null,
+    time_note: '',
+  }));
+}
+
 function initRow(tc) {
   // Hỗ trợ cả format cũ (question/expected string) và mới (turns array)
   let turns = tc.turns;
@@ -131,6 +152,7 @@ function initRow(tc) {
       action: '',
       response_time_ms: null,
       verdict: null,
+      reasoning: '',
       error_desc: '',
       suggestion: '',
       suggested_response: '',
@@ -321,8 +343,16 @@ function renderErrorDesc(turn, tcStatus) {
   // Chỉ hiển thị lỗi khi FAILED
   if (tcStatus !== 'done') return '<span class="cell-empty">—</span>';
   if (turn.verdict === 'PASSED') return '<span class="cell-empty">—</span>';
-  if (!turn.error_desc) return '<span class="cell-empty">—</span>';
-  return `<div class="judge-text err-text">${turn.error_desc}</div>`;
+
+  // Ưu tiên error_desc, fallback về reasoning nếu error_desc rỗng
+  const desc = turn.error_desc || (turn.reasoning ? '⚠️ Xem reasoning' : '');
+  if (!desc) return '<span class="cell-empty">—</span>';
+
+  // Thêm reasoning tooltip nếu có
+  const reasoningAttr = turn.reasoning
+    ? `title="${turn.reasoning.replace(/"/g, '&quot;').replace(/\n/g, ' ')}"` : '';
+
+  return `<div class="judge-text err-text" ${reasoningAttr}>${desc}</div>`;
 }
 
 function renderSuggestion(turn, tcStatus) {

@@ -5,7 +5,7 @@ Workflow: warmup → run turns → judge → save history
 
 import time
 import uuid
-from typing import Dict, Any, List, TypedDict, Annotated
+from typing import Dict, Any, List, TypedDict
 from langgraph.graph import StateGraph, END
 from langsmith import traceable
 import httpx
@@ -16,6 +16,39 @@ from models.history import History
 
 # Callbot API URL
 CALLBOT_URL = "http://160.250.216.28:11005/api/v1/call/"
+
+# Shared HTTP client cho actual calls — tái sử dụng connection pool
+_http_client: httpx.AsyncClient | None = None
+
+
+async def get_http_client() -> httpx.AsyncClient:
+    """Trả về shared HTTP client cho actual calls"""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=30.0,
+            headers={
+                "accept": "application/json",
+                "Content-Type": "application/json"
+            }
+        )
+    return _http_client
+
+
+async def call_bot_warmup(conversation_id: str) -> None:
+    """
+    Gọi warmup — dùng CHÍNH shared client để làm nóng connection pool.
+    Sau warmup, actual calls tái sử dụng connection đã có → không bị TCP handshake.
+    Thời gian warmup KHÔNG được đo và KHÔNG tính vào response_time_ms.
+    """
+    payload = {"conversation_id": conversation_id, "message": "xin chào"}
+    print(f"[warmup] → {payload}")
+    try:
+        client = await get_http_client()
+        await client.post(CALLBOT_URL, json=payload)
+        print(f"[warmup] ← completed (connection pool warmed up, time not counted)")
+    except Exception as e:
+        print(f"[warmup] ← failed (ignored): {e}")
 
 
 # ============================================================================
@@ -46,45 +79,31 @@ class TestcaseState(TypedDict):
 
 async def call_bot(conversation_id: str, message: str) -> Dict[str, Any]:
     """
-    Gọi Callbot API
-    
-    Args:
-        conversation_id: ID hội thoại
-        message: Tin nhắn gửi đi
-        
-    Returns:
-        Dict với keys: answer, action, response_time_ms
+    Gọi Callbot API cho actual turns.
+    Dùng shared client để tái sử dụng connection — thời gian đo
+    chỉ bao gồm thời gian bot xử lý câu hỏi thực tế.
     """
     payload = {"conversation_id": conversation_id, "message": message}
     print(f"[callBot] → {payload}")
-    
-    # Tính thời gian phản hồi
-    start_time = time.time()
-    
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            CALLBOT_URL,
-            json=payload,
-            headers={
-                "accept": "application/json",
-                "Content-Type": "application/json"
-            }
-        )
-    
-    end_time = time.time()
-    response_time_ms = int((end_time - start_time) * 1000)
-    
+
+    client = await get_http_client()
+
+    # Đo thời gian chỉ bao gồm thời gian bot xử lý câu hỏi thực tế
+    start_time = time.perf_counter()
+    response = await client.post(CALLBOT_URL, json=payload)
+    response_time_ms = int((time.perf_counter() - start_time) * 1000)
+
     if response.status_code != 200:
         raise Exception(f"Callbot returned HTTP {response.status_code}")
-    
-    # Parse response
+
+    # Parse response: format "answer|action"
     raw = response.text.strip()
     parts = raw.split("|")
     action = parts[-1].strip()
     answer = "|".join(parts[:-1]).strip()
-    
+
     print(f"[callBot] ← answer={answer[:50]}..., action={action}, time={response_time_ms}ms")
-    
+
     return {
         "answer": answer,
         "action": action,
@@ -99,17 +118,14 @@ async def call_bot(conversation_id: str, message: str) -> Dict[str, Any]:
 @traceable(name="warmup_node", run_type="chain")
 async def warmup_node(state: TestcaseState) -> TestcaseState:
     """
-    Node 1: Warmup - Gửi "xin chào" để khởi động hội thoại
-    Dùng conversation_id ngẫu nhiên để tránh bot nhớ context từ lần chạy trước
+    Node 1: Warmup - Gửi "xin chào" để khởi động hội thoại.
+    Dùng client riêng biệt để thời gian warmup KHÔNG ảnh hưởng
+    đến response_time_ms của các actual turns.
     """
     print(f"[warmup] {state['code']} → conversation_id={state['conversation_id']}")
-    
-    try:
-        await call_bot(state["conversation_id"], "xin chào")
-        print(f"[warmup] {state['code']} → Warmup completed")
-    except Exception as e:
-        print(f"[warmup] {state['code']} → Warmup failed: {e}")
-    
+    await call_bot_warmup(state["conversation_id"])
+    print(f"[warmup] {state['code']} → done")
+
     return {
         **state,
         "current_turn_index": 0,

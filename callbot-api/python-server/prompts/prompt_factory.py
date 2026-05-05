@@ -1,11 +1,11 @@
 """
-Factory để tạo prompt cho từng tiêu chí đánh giá - LLM tự đánh giá không dùng scoring
-Sử dụng LangChain ChatPromptTemplate
+Factory để tạo prompt cho từng tiêu chí đánh giá - LLM tự đánh giá với Chain-of-Thought
 """
 
 from langchain_core.prompts import ChatPromptTemplate
 from .base_prompt import (
     DOMAIN_GLOSSARY,
+    CHAIN_OF_THOUGHT,
     GROUP_RULES,
     SELF_CONSISTENCY_RULES,
     OUTPUT_WARNING,
@@ -17,7 +17,7 @@ from .base_prompt import (
 
 
 def get_standard_prompt() -> str:
-    """Tiêu chí Chuẩn - Cân bằng giữa nội dung, giọng điệu và thời gian"""
+    """Tiêu chí Chuẩn - Cân bằng nội dung + giọng điệu + thời gian"""
     return """Bạn là chuyên gia kiểm thử chatbot hành chính công. Đánh giá theo tiêu chí CHUẨN.
 
 {context}
@@ -26,32 +26,26 @@ def get_standard_prompt() -> str:
 
 {group_rules}
 
-## TIÊU CHÍ CHUẨN — Cân bằng nội dung + giọng điệu + thời gian
+{chain_of_thought}
 
-**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
-Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
-Đặc biệt với nhóm B: nếu bot từ chối + chuyển hướng → PASSED ngay, không cần xét thêm.
+## TIÊU CHÍ CHUẨN — Ngưỡng đánh giá
 
-**Bước 2: Đánh giá nội dung (chỉ với nhóm A, C, D)**
-- Liệt kê các thông tin cốt lõi trong kỳ vọng (giấy tờ, địa điểm, thời gian, lệ phí...)
-- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
-- ≥80% thông tin cốt lõi có mặt → nội dung đạt
+Sau khi hoàn thành CoT ở trên, áp dụng ngưỡng sau để ra verdict:
 
-**Bước 3: Đánh giá giọng điệu**
-- Có xưng hô phù hợp (anh/chị/em) không?
-- Có dùng dạ/ạ không?
-- Giọng điệu có tự nhiên, thân thiện không?
-- Giọng điệu kém KHÔNG tự động dẫn đến FAILED nếu nội dung tốt
+**Nội dung:**
+- Nhóm B: theo CoT-B3
+- Nhóm A/C/D: theo CoT-3 (ngưỡng tự động theo số lượng thông tin cốt lõi)
+- Thiếu thông tin BỔ SUNG → không ảnh hưởng verdict
 
-**Bước 4: Đánh giá thời gian**
-- ≤2s: Rất tốt
-- ≤3s: Chấp nhận được
-- >3s: Chậm (ghi nhận nhưng không tự động FAILED)
+**Giọng điệu:**
+- Chấp nhận được: có xưng hô HOẶC có dạ/ạ
+- Kém: không xưng hô VÀ không dạ/ạ VÀ cộc lốc → có thể FAILED nếu nội dung cũng yếu
+- Giọng điệu kém đơn lẻ KHÔNG tự động FAILED nếu nội dung tốt
 
-**Quyết định PASSED/FAILED:**
-- PASSED: Nội dung đúng đủ (≥80%) VÀ giọng điệu chấp nhận được
-- FAILED: Nội dung sai/thiếu quan trọng HOẶC giọng điệu rất kém (thô lỗ, cộc lốc)
-- Thời gian chậm: chỉ FAILED nếu >5s
+**Thời gian:**
+- ≤3s: không ảnh hưởng verdict
+- >3s–5s: ghi nhận, không FAILED
+- >5s: có thể FAILED nếu kết hợp với vấn đề khác
 
 {self_consistency}
 
@@ -75,31 +69,31 @@ def get_strict_prompt() -> str:
 
 {group_rules}
 
-## TIÊU CHÍ NGHIÊM NGẶT — Yêu cầu cao về mọi mặt
+{chain_of_thought}
 
-**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
-Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
-Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED (nhưng vẫn nhận xét chất lượng từ chối).
+## TIÊU CHÍ NGHIÊM NGẶT — Ngưỡng đánh giá
 
-**Bước 2: Đánh giá nội dung (khắt khe)**
-- Liệt kê từng thông tin cốt lõi trong kỳ vọng
-- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
-- Phải có ≥95% thông tin cốt lõi, không được thiếu bất kỳ chi tiết quan trọng nào
+Sau khi hoàn thành CoT ở trên, áp dụng ngưỡng CAO hơn:
 
-**Bước 3: Đánh giá giọng điệu (yêu cầu hoàn hảo)**
-- Phải có xưng hô đúng (anh/chị/em)
+**Nội dung (khắt khe):**
+- Nhóm B: theo CoT-B3
+- Nhóm A/C/D: cần ≥95% thông tin CỐT LÕI — không được thiếu bất kỳ chi tiết quan trọng nào
+- Thông tin BỔ SUNG: thiếu → ghi nhận là Minor error nhưng không tự động FAILED
+
+**Giọng điệu (yêu cầu hoàn hảo):**
+- Phải có xưng hô (anh/chị/em)
 - Phải có dạ/ạ
-- Phải tự nhiên, thân thiện, không máy móc
-- Thiếu bất kỳ yếu tố nào → trừ điểm nặng
+- Phải tự nhiên, không máy móc
+- Thiếu bất kỳ yếu tố nào → Major error
 
-**Bước 4: Đánh giá thời gian (yêu cầu nhanh)**
-- ≤2s: Tốt
-- ≤2.5s: Chấp nhận được
-- >2.5s: Cần ghi nhận là lỗi
+**Thời gian (yêu cầu nhanh):**
+- ≤2s: tốt
+- ≤2.5s: chấp nhận được
+- >2.5s: Major error
 
-**Quyết định PASSED/FAILED:**
-- PASSED: Nội dung ≥95% + giọng điệu tốt (xưng hô + dạ/ạ) + thời gian ≤2.5s
-- FAILED: Bất kỳ khiếm khuyết đáng kể nào về nội dung, giọng điệu, hoặc thời gian
+**Verdict:**
+- PASSED: nội dung ≥95% + giọng điệu đủ (xưng hô + dạ/ạ) + thời gian ≤2.5s
+- FAILED: bất kỳ Major/Critical error nào
 
 {self_consistency}
 
@@ -123,33 +117,28 @@ def get_speed_focused_prompt() -> str:
 
 {group_rules}
 
-## TIÊU CHÍ TỐC ĐỘ — Ưu tiên thời gian phản hồi nhanh
+{chain_of_thought}
 
-**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
-Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
-Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED bất kể thời gian.
+## TIÊU CHÍ TỐC ĐỘ — Ngưỡng đánh giá
 
-**Bước 2: Đánh giá thời gian (QUAN TRỌNG NHẤT)**
-- ≤1.5s: Xuất sắc
-- ≤2s: Rất tốt
-- ≤3s: Chấp nhận được
-- >3s: Chậm → cần nội dung rất tốt mới PASSED
+Sau khi hoàn thành CoT ở trên, áp dụng ngưỡng ưu tiên tốc độ:
 
-**Bước 3: Đánh giá nội dung (chỉ cần đủ tốt)**
-- Liệt kê các thông tin cốt lõi trong kỳ vọng
-- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG")
-- ≥70% thông tin cốt lõi là chấp nhận được, không cần 100% hoàn hảo
+**Thời gian (QUAN TRỌNG NHẤT):**
+- ≤2s: xuất sắc → PASSED nếu nội dung ≥70%
+- ≤3s: tốt → PASSED nếu nội dung ≥80%
+- >3s: chậm → cần nội dung ≥90% mới PASSED
 
-**Bước 4: Đánh giá giọng điệu (ít quan trọng)**
+**Nội dung (chỉ cần đủ tốt):**
+- Chỉ xét thông tin CỐT LÕI, bỏ qua thông tin BỔ SUNG
+- Ngưỡng thấp hơn các tiêu chí khác (xem bảng thời gian ở trên)
+
+**Giọng điệu (ít quan trọng):**
 - Có xưng hô hoặc dạ/ạ là được
-- Chấp nhận hơi máy móc
 - Chỉ FAILED nếu thô lỗ rõ ràng
 
-**Quyết định PASSED/FAILED:**
-- PASSED: Thời gian ≤2s + nội dung ≥70%
-- PASSED: Thời gian ≤3s + nội dung ≥80%
-- FAILED: Thời gian >3s + nội dung <80%
-- FAILED: Nội dung <70% bất kể thời gian
+**Verdict:**
+- PASSED: thời gian ≤2s + nội dung ≥70%, hoặc thời gian ≤3s + nội dung ≥80%
+- FAILED: thời gian >3s + nội dung <90%, hoặc nội dung <70% bất kể thời gian
 
 {self_consistency}
 
@@ -173,29 +162,28 @@ def get_content_only_prompt() -> str:
 
 {group_rules}
 
-## TIÊU CHÍ NỘI DUNG — Chỉ đánh giá độ chính xác thông tin
+{chain_of_thought}
 
-**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
-Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
-Với nhóm B: nếu bot từ chối + chuyển hướng → PASSED bất kể giọng điệu hay thời gian.
+## TIÊU CHÍ NỘI DUNG — Ngưỡng đánh giá
 
-**Bước 2: Đánh giá nội dung (QUAN TRỌNG NHẤT — DUY NHẤT)**
-- Liệt kê các thông tin cốt lõi trong kỳ vọng
-- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG" để nhận biết cách trình bày tương đương)
-- ≥80% thông tin cốt lõi → PASSED; <80% hoặc sai thông tin → FAILED
+Sau khi hoàn thành CoT ở trên, chỉ xét nội dung:
 
-**Bước 3: Giọng điệu — BỎ QUA HOÀN TOÀN**
-- Không đánh giá xưng hô, dạ/ạ, tự nhiên
-- Chấp nhận mọi cách diễn đạt miễn nội dung đúng
-- tone_note: chỉ ghi nhận, không ảnh hưởng verdict
+**Nội dung (DUY NHẤT ảnh hưởng verdict):**
+- Nhóm B: theo CoT-B3
+- Nhóm A/C/D: theo CoT-3 (ngưỡng tự động theo số lượng thông tin cốt lõi)
+- Chỉ xét thông tin CỐT LÕI — thông tin BỔ SUNG không ảnh hưởng
 
-**Bước 4: Thời gian — Ít quan trọng**
-- ≤5s: Chấp nhận được
-- >5s: Ghi nhận nhưng không tự động FAILED
+**Giọng điệu — BỎ QUA HOÀN TOÀN:**
+- Không ảnh hưởng verdict dù tốt hay kém
+- tone_note: chỉ ghi nhận để tham khảo
 
-**Quyết định PASSED/FAILED:**
-- PASSED: Nội dung đầy đủ và chính xác (≥80%)
-- FAILED: Thiếu thông tin quan trọng hoặc sai thông tin
+**Thời gian — Ít quan trọng:**
+- ≤5s: không ảnh hưởng verdict
+- >5s: ghi nhận nhưng không tự động FAILED
+
+**Verdict:**
+- PASSED: nội dung CỐT LÕI đủ ngưỡng
+- FAILED: thiếu thông tin CỐT LÕI hoặc sai thông tin
 
 {self_consistency}
 
@@ -219,30 +207,29 @@ def get_ux_focused_prompt() -> str:
 
 {group_rules}
 
-## TIÊU CHÍ TRẢI NGHIỆM — Ưu tiên giọng điệu thân thiện
+{chain_of_thought}
 
-**Bước 1: Xác định nhóm và áp dụng quy tắc nhóm trước**
-Đọc kỹ "QUY TẮC ĐÁNH GIÁ THEO NHÓM" ở trên và áp dụng cho nhóm tương ứng.
-Với nhóm B: nếu bot từ chối + chuyển hướng lịch sự, thân thiện → PASSED.
+## TIÊU CHÍ TRẢI NGHIỆM — Ngưỡng đánh giá
 
-**Bước 2: Đánh giá giọng điệu (QUAN TRỌNG NHẤT)**
-- Có xưng hô phù hợp (anh/chị/em) không?
-- Có dùng dạ/ạ không?
-- Giọng điệu có tự nhiên, thân thiện, ấm áp không?
-- Có tạo cảm giác thoải mái cho người dùng không?
+Sau khi hoàn thành CoT ở trên, ưu tiên trải nghiệm:
 
-**Bước 3: Đánh giá nội dung (chỉ cần đủ tốt)**
-- Liệt kê các thông tin cốt lõi trong kỳ vọng
-- Kiểm tra từng thông tin đó có trong câu trả lời thực tế không (dùng "NGUYÊN TẮC PHÂN TÍCH NỘI DUNG")
-- ≥70% thông tin cốt lõi là đủ, ưu tiên trải nghiệm hơn chi tiết kỹ thuật
+**Giọng điệu (QUAN TRỌNG NHẤT):**
+- Xuất sắc: xưng hô + dạ/ạ + tự nhiên + ấm áp
+- Tốt: xưng hô + dạ/ạ
+- Chấp nhận: có xưng hô HOẶC có dạ/ạ
+- Kém: không xưng hô VÀ không dạ/ạ VÀ máy móc → có thể FAILED
 
-**Bước 4: Đánh giá thời gian**
-- ≤3s: Tốt
-- >3s: Cần cải thiện (ghi nhận nhưng không tự động FAILED)
+**Nội dung (chỉ cần đủ tốt):**
+- Chỉ xét thông tin CỐT LÕI, bỏ qua thông tin BỔ SUNG
+- Ngưỡng: ≥70% thông tin cốt lõi là đủ
 
-**Quyết định PASSED/FAILED:**
-- PASSED: Giọng điệu tốt (xưng hô + dạ/ạ + tự nhiên) + nội dung ≥70%
-- FAILED: Giọng điệu kém (thô lỗ, cộc lốc, máy móc hoàn toàn) HOẶC nội dung <70%
+**Thời gian:**
+- ≤3s: tốt
+- >3s: ghi nhận, không tự động FAILED
+
+**Verdict:**
+- PASSED: giọng điệu ≥ "Chấp nhận" + nội dung CỐT LÕI ≥70%
+- FAILED: giọng điệu "Kém" HOẶC nội dung CỐT LÕI <70%
 
 {self_consistency}
 
@@ -256,7 +243,10 @@ Với nhóm B: nếu bot từ chối + chuyển hướng lịch sự, thân thi�
 """
 
 
-# Mapping từ criteria name đến prompt function
+# ============================================================================
+# PROMPT MAP & FACTORY
+# ============================================================================
+
 PROMPT_MAP = {
     "standard": get_standard_prompt,
     "strict": get_strict_prompt,
@@ -282,7 +272,7 @@ def create_judge_prompt(
         question: Câu hỏi
         expected: Câu trả lời kỳ vọng
         actual: Câu trả lời thực tế
-        group: Nhóm testcase
+        group: Nhóm testcase (A/B/C/D)
         time_label: Label thời gian (vd: "1500ms (Nhanh)")
 
     Returns:
@@ -296,6 +286,7 @@ def create_judge_prompt(
     formatted_prompt = prompt_template.format(
         context=context,
         domain_glossary=DOMAIN_GLOSSARY,
+        chain_of_thought=CHAIN_OF_THOUGHT,
         group_rules=GROUP_RULES,
         self_consistency=SELF_CONSISTENCY_RULES,
         output_warning=OUTPUT_WARNING,
