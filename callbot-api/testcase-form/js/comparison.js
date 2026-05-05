@@ -91,23 +91,12 @@ function showComparisonModal(testcases, mode) {
                 
                 <div class="comparison-tabs">
                     <button class="comparison-tab active" data-tab="table">📊 Bảng so sánh</button>
-                    <button class="comparison-tab" data-tab="diff">🔍 Visual Diff</button>
-                    <button class="comparison-tab" data-tab="metrics">📈 Chỉ số</button>
                     <button class="comparison-tab" data-tab="analysis">🤖 Phân tích LLM</button>
                 </div>
                 
                 <div class="comparison-content">
                     <div class="comparison-tab-content active" data-content="table">
                         ${renderComparisonTable(testcases)}
-                    </div>
-                    <div class="comparison-tab-content" data-content="diff">
-                        <div class="diff-loading">
-                            <div class="spinner-cell"></div>
-                            <p>Đang tính toán visual diff...</p>
-                        </div>
-                    </div>
-                    <div class="comparison-tab-content" data-content="metrics">
-                        ${renderMetrics(testcases)}
                     </div>
                     <div class="comparison-tab-content" data-content="analysis">
                         <div class="llm-analysis-loading">
@@ -268,7 +257,6 @@ function renderMetrics(testcases) {
 
 async function analyzWithLLM(testcases, mode) {
     const analysisContent = document.querySelector('[data-content="analysis"]');
-    const diffContent = document.querySelector('[data-content="diff"]');
 
     try {
         // Prepare request data
@@ -306,14 +294,6 @@ async function analyzWithLLM(testcases, mode) {
             analysisContent.innerHTML = renderLLMAnalysis(result, testcases);
         }
 
-        // Render visual diff
-        if (diffContent) {
-            diffContent.innerHTML = renderVisualDiff(result.diff_pairs, testcases);
-        }
-
-        // Update metrics tab with similarity data
-        updateMetricsWithSimilarity(result.similarity_matrix, testcases);
-
     } catch (error) {
         console.error('❌ LLM analysis error:', error);
         if (analysisContent) {
@@ -324,13 +304,6 @@ async function analyzWithLLM(testcases, mode) {
                         <p>Không thể phân tích với LLM: ${error.message}</p>
                         <button class="btn-retry" onclick="location.reload()">🔄 Thử lại</button>
                     </div>
-                </div>
-            `;
-        }
-        if (diffContent) {
-            diffContent.innerHTML = `
-                <div class="diff-error">
-                    <p>❌ Không thể tính toán diff: ${error.message}</p>
                 </div>
             `;
         }
