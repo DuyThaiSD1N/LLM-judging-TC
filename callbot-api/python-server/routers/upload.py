@@ -107,8 +107,9 @@ Mỗi testcase gồm:
 - "question": Câu hỏi từ user
 - "expected": Câu trả lời kỳ vọng
 - "criteria": Tiêu chí LLM Judge (standard/strict/speed-focused/content-only/ux-focused). Nếu không có thì để "standard"
+- "bot_url": URL của bot (nếu có). Nếu không có thì để null
 
-Nếu một trường không tìm thấy, để chuỗi rỗng "" (trừ criteria thì để "standard").
+Nếu một trường không tìm thấy, để chuỗi rỗng "" (trừ criteria thì để "standard", bot_url thì để null).
 Trả về JSON với key "testcases" chứa array các testcase.
 
 Dữ liệu Excel:
@@ -180,7 +181,8 @@ async def upload_excel(file: UploadFile = File(...)):
                         question=tc.get("question", ""),
                         expected=tc.get("expected", "")
                     )],
-                    criteria=tc.get("criteria", "standard")
+                    criteria=tc.get("criteria", "standard"),
+                    bot_url=tc.get("bot_url")  # None nếu không có
                 )
             )
         

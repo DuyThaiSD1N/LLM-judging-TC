@@ -27,7 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 # Import routers
-from routers import run, testcase, history, upload, template, export
+from routers import run, testcase, history, upload, template, export, comparison
 
 # Initialize database
 from config.database import init_db
@@ -55,6 +55,7 @@ app.include_router(history.router, prefix="/api", tags=["History"])
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
 app.include_router(template.router, prefix="/api", tags=["Template"])
 app.include_router(export.router, prefix="/api", tags=["Export"])
+app.include_router(comparison.router, prefix="/api", tags=["Comparison"])
 
 # ── Health check endpoint ─────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])

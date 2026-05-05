@@ -34,3 +34,9 @@ export function getAuthHeaders() {
         'X-API-Key': API_KEY,
     };
 }
+
+// Lấy bot URL từ input (rỗng = dùng default ở server)
+export function getBotUrl() {
+    const input = document.getElementById('bot-url-input');
+    return input ? input.value.trim() : '';
+}

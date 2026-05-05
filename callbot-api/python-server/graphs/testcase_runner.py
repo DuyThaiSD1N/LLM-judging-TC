@@ -5,7 +5,7 @@ Workflow: warmup → run turns → judge → save history
 
 import time
 import uuid
-from typing import Dict, Any, List, TypedDict
+from typing import Dict, Any, List, TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langsmith import traceable
 import httpx
@@ -14,8 +14,8 @@ from graphs.judge_agent import judge_agent
 from models.history import History
 
 
-# Callbot API URL
-CALLBOT_URL = "http://160.250.216.28:11005/api/v1/call/"
+# Callbot API URL mặc định
+DEFAULT_CALLBOT_URL = "http://160.250.216.28:11005/api/v1/call/"
 
 # Shared HTTP client cho actual calls — tái sử dụng connection pool
 _http_client: httpx.AsyncClient | None = None
@@ -35,20 +35,23 @@ async def get_http_client() -> httpx.AsyncClient:
     return _http_client
 
 
-async def call_bot_warmup(conversation_id: str) -> None:
+async def call_bot_warmup(conversation_id: str, bot_url: str) -> None:
     """
     Gọi warmup — dùng CHÍNH shared client để làm nóng connection pool.
-    Sau warmup, actual calls tái sử dụng connection đã có → không bị TCP handshake.
-    Thời gian warmup KHÔNG được đo và KHÔNG tính vào response_time_ms.
+    Thời gian warmup KHÔNG được tính vào response_time_ms của actual turns.
     """
     payload = {"conversation_id": conversation_id, "message": "xin chào"}
     print(f"[warmup] → {payload}")
+    
+    warmup_start = time.perf_counter()
     try:
         client = await get_http_client()
-        await client.post(CALLBOT_URL, json=payload)
-        print(f"[warmup] ← completed (connection pool warmed up, time not counted)")
+        await client.post(bot_url, json=payload)
+        warmup_time = int((time.perf_counter() - warmup_start) * 1000)
+        print(f"[warmup] ← completed in {warmup_time}ms (connection pool warmed, time NOT counted in results)")
     except Exception as e:
-        print(f"[warmup] ← failed (ignored): {e}")
+        warmup_time = int((time.perf_counter() - warmup_start) * 1000)
+        print(f"[warmup] ← failed after {warmup_time}ms (ignored): {e}")
 
 
 # ============================================================================
@@ -63,10 +66,11 @@ class TestcaseState(TypedDict):
     group: str
     turns: List[Dict[str, str]]
     criteria: str
-    
+    bot_url: str  # URL bot (default hoặc tùy chỉnh)
+
     # Unique conversation ID cho mỗi lần chạy (tránh bot nhớ context cũ)
     conversation_id: str
-    
+
     # Runtime state
     current_turn_index: int
     turn_results: List[Dict[str, Any]]
@@ -77,26 +81,28 @@ class TestcaseState(TypedDict):
 # Helper Functions
 # ============================================================================
 
-async def call_bot(conversation_id: str, message: str) -> Dict[str, Any]:
+async def call_bot(conversation_id: str, message: str, bot_url: str) -> Dict[str, Any]:
     """
     Gọi Callbot API cho actual turns.
-    Dùng shared client để tái sử dụng connection — thời gian đo
-    chỉ bao gồm thời gian bot xử lý câu hỏi thực tế.
+    Chỉ tính thời gian từ khi gửi request đến khi nhận response.
     """
     payload = {"conversation_id": conversation_id, "message": message}
     print(f"[callBot] → {payload}")
 
     client = await get_http_client()
 
-    # Đo thời gian chỉ bao gồm thời gian bot xử lý câu hỏi thực tế
+    # Bắt đầu đo thời gian NGAY TRƯỚC KHI GỬI REQUEST
     start_time = time.perf_counter()
-    response = await client.post(CALLBOT_URL, json=payload)
-    response_time_ms = int((time.perf_counter() - start_time) * 1000)
+    response = await client.post(bot_url, json=payload)
+    # Kết thúc đo thời gian NGAY SAU KHI NHẬN RESPONSE
+    end_time = time.perf_counter()
+    response_time_ms = int((end_time - start_time) * 1000)
+
+    print(f"[callBot] ⏱️  Response time: {response_time_ms}ms (start={start_time:.6f}, end={end_time:.6f})")
 
     if response.status_code != 200:
         raise Exception(f"Callbot returned HTTP {response.status_code}")
 
-    # Parse response: format "answer|action"
     raw = response.text.strip()
     parts = raw.split("|")
     action = parts[-1].strip()
@@ -118,13 +124,12 @@ async def call_bot(conversation_id: str, message: str) -> Dict[str, Any]:
 @traceable(name="warmup_node", run_type="chain")
 async def warmup_node(state: TestcaseState) -> TestcaseState:
     """
-    Node 1: Warmup - Gửi "xin chào" để khởi động hội thoại.
-    Dùng client riêng biệt để thời gian warmup KHÔNG ảnh hưởng
-    đến response_time_ms của các actual turns.
+    Node 1: Warmup - Gửi "xin chào" để khởi động hội thoại và skip câu chào mặc định.
+    Thời gian warmup KHÔNG được tính vào response_time_ms của các actual turns.
     """
-    print(f"[warmup] {state['code']} → conversation_id={state['conversation_id']}")
-    await call_bot_warmup(state["conversation_id"])
-    print(f"[warmup] {state['code']} → done")
+    print(f"[warmup_node] {state['code']} → Starting warmup (conversation_id={state['conversation_id']})")
+    await call_bot_warmup(state["conversation_id"], state["bot_url"])
+    print(f"[warmup_node] {state['code']} → Warmup completed, ready for actual turns")
 
     return {
         **state,
@@ -161,7 +166,7 @@ async def run_turn_node(state: TestcaseState) -> TestcaseState:
     
     try:
         # Call bot dùng conversation_id ngẫu nhiên (không phải mã testcase)
-        bot_response = await call_bot(state["conversation_id"], turn["question"])
+        bot_response = await call_bot(state["conversation_id"], turn["question"], state["bot_url"])
         turn_result["actual"] = bot_response["answer"]
         turn_result["action"] = bot_response["action"]
         turn_result["response_time_ms"] = bot_response["response_time_ms"]
@@ -317,29 +322,30 @@ async def run_testcase(
     name: str,
     group: str,
     turns: List[Dict[str, str]],
-    criteria: str = "standard"
+    criteria: str = "standard",
+    bot_url: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Chạy một testcase với LangGraph
-    
+
     Args:
         code: Mã testcase
         name: Tên testcase
         group: Nhóm (A/B/C/D)
         turns: Danh sách turns
         criteria: Tiêu chí đánh giá
-        
-    Returns:
-        Dict với turn_results và status
+        bot_url: URL bot tùy chỉnh (None = dùng default)
     """
+    resolved_url = bot_url.strip() if bot_url and bot_url.strip() else DEFAULT_CALLBOT_URL
+    print(f"🤖 Bot URL: {resolved_url}")
+
     initial_state: TestcaseState = {
         "code": code,
         "name": name,
         "group": group,
         "turns": turns,
         "criteria": criteria,
-        # Tạo conversation_id ngẫu nhiên mỗi lần chạy
-        # Đảm bảo bot không nhớ context từ lần chạy trước
+        "bot_url": resolved_url,
         "conversation_id": f"{code}-{uuid.uuid4().hex[:8]}",
         "current_turn_index": 0,
         "turn_results": [],

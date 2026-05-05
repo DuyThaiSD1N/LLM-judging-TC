@@ -19,6 +19,7 @@ export { getIsRunning } from './state.js';
 
 // ── Disable/Enable UI khi đang chạy ──────────────────────────────────────
 function setUIRunning(running) {
+    console.log(`🔄 setUIRunning: ${running}`);
     setRunning(running);
 
     // Các nút chính
@@ -29,6 +30,7 @@ function setUIRunning(running) {
     const btnTemplate = document.getElementById('btn-template');
     const btnHistory = document.getElementById('btn-history');
     const btnExport = document.getElementById('btn-export');
+    const btnCompare = document.getElementById('btn-compare');
     const fileInput = document.getElementById('file-input');
     const uploadZone = document.getElementById('upload-zone');
 
@@ -41,9 +43,12 @@ function setUIRunning(running) {
     const criteriaTrigger = document.getElementById('criteria-trigger');
 
     // Disable/enable tất cả
-    [btnRunAll, btnAdd, btnReset, btnClearAll, btnTemplate, btnHistory, btnExport,
+    [btnRunAll, btnAdd, btnReset, btnClearAll, btnTemplate, btnHistory, btnExport, btnCompare,
         fileInput, tcName, tcCode, tcQuestion, tcExpected, groupTrigger, criteriaTrigger].forEach(el => {
-            if (el) el.disabled = running;
+            if (el) {
+                el.disabled = running;
+                console.log(`  ${el.id}: disabled = ${running}`);
+            }
         });
 
     // Upload zone styling
@@ -52,10 +57,12 @@ function setUIRunning(running) {
             uploadZone.style.opacity = '0.5';
             uploadZone.style.cursor = 'not-allowed';
             uploadZone.style.pointerEvents = 'none';
+            console.log('  upload-zone: DISABLED');
         } else {
             uploadZone.style.opacity = '1';
             uploadZone.style.cursor = 'pointer';
             uploadZone.style.pointerEvents = 'auto';
+            console.log('  upload-zone: ENABLED');
         }
     }
 
@@ -204,7 +211,8 @@ export async function runSingle(idx) {
                 code: tc.code,
                 group: tc.group,
                 turns: tc.turns,
-                criteria: tc.criteria || 'standard'
+                criteria: tc.criteria || 'standard',
+                bot_url: tc.bot_url || null
             }),
         });
         const data = await res.json();

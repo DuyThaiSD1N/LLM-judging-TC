@@ -23,6 +23,7 @@ class TestcaseBase(BaseModel):
     group: Literal["A", "B", "C", "D"]
     turns: List[Turn]
     criteria: str = "standard"
+    bot_url: Optional[str] = None  # URL bot riêng cho testcase này
 
 
 class TestcaseCreate(TestcaseBase):
@@ -154,11 +155,13 @@ class RunSingleRequest(BaseModel):
     question: Optional[str] = None
     expected: Optional[str] = None
     criteria: str = "standard"
+    bot_url: Optional[str] = None  # URL bot tùy chỉnh, None = dùng default
 
 
 class RunTestcasesRequest(BaseModel):
     """Request cho chạy multiple testcases"""
     testcases: List[TestcaseBase]
+    bot_url: Optional[str] = None  # URL bot tùy chỉnh, None = dùng default
 
 
 class TestcaseRunResult(TestcaseBase):

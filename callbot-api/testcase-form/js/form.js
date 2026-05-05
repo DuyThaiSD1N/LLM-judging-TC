@@ -86,6 +86,9 @@ function loadTestcaseToForm(index, tc) {
     document.getElementById('tc-question').value = questions;
     document.getElementById('tc-expected').value = expecteds;
 
+    // Set bot URL
+    document.getElementById('tc-bot-url').value = tc.bot_url || '';
+
     // Set criteria
     const criteriaRadio = document.querySelector(`input[name="criteria"][value="${tc.criteria}"]`);
     if (criteriaRadio) {
@@ -127,18 +130,22 @@ function handleAdd() {
 
     const turns = questions.map((q, i) => ({ question: q, expected: expecteds[i] }));
     const criteria = getSelectedCriteria();
+    const botUrl = document.getElementById('tc-bot-url').value.trim();
+
+    console.log('🔍 Bot URL from input:', botUrl);
+    console.log('🔍 Bot URL to save:', botUrl || null);
 
     if (editingIndex !== null) {
         // Update existing testcase
         import('./table.js').then(({ updateTestcase }) => {
-            updateTestcase(editingIndex, { name, code, group, turns, criteria });
+            updateTestcase(editingIndex, { name, code, group, turns, criteria, bot_url: botUrl || null });
             resetForm();
             const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
             showToast(`✅ Đã cập nhật testcase "${name}" với ${turnText}`, 'success');
         });
     } else {
         // Add new testcase
-        addTestcase({ name, code, group, turns, criteria });
+        addTestcase({ name, code, group, turns, criteria, bot_url: botUrl || null });
         resetForm();
         const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
         showToast(`✅ Đã thêm testcase "${name}" với ${turnText}`, 'success');
@@ -151,6 +158,7 @@ export function resetForm() {
     document.getElementById('tc-code').value = '';
     document.getElementById('tc-question').value = '';
     document.getElementById('tc-expected').value = '';
+    document.getElementById('tc-bot-url').value = '';
     document.querySelectorAll('input[name="group"]').forEach(el => el.checked = false);
     document.getElementById('group-selected-display').innerHTML =
         '<span class="trigger-placeholder">Chọn nhóm...</span>';

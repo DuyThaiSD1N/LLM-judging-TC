@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chatbot Quality Assurance</title>
-    <link rel="stylesheet" href="css/style.css?v=2" />
+    <link rel="stylesheet" href="css/style.css?v=4" />
 </head>
 
 <body>
@@ -106,6 +106,15 @@
                 </div>
             </div>
 
+            <!-- Row 1b: Bot URL -->
+            <div class="form-row-bot-url">
+                <div class="field">
+                    <label class="field-label">Bot URL cho testcase này</label>
+                    <input id="tc-bot-url" type="text" class="input"
+                        placeholder="Để trống = dùng URL mặc định từ server (mỗi testcase có thể có URL riêng)" />
+                </div>
+            </div>
+
             <!-- Row 2: Câu hỏi + Kỳ vọng -->
             <div class="form-row-2">
                 <div class="field">
@@ -154,6 +163,7 @@
             <div class="table-section-header">
                 <h2 class="section-title-lg">Đánh giá Testcase</h2>
                 <div style="display: flex; gap: 10px;">
+                    <button id="btn-compare" class="btn btn-compare" disabled>⚖️ So sánh</button>
                     <button id="btn-clear-all" class="btn btn-danger">🗑 Xóa tất cả</button>
                     <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả testcase</button>
                 </div>
@@ -240,7 +250,7 @@
     </div>
 
     <div id="toast"></div>
-    <script type="module" src="js/main.js?v=2"></script>
+    <script type="module" src="js/main.js?v=4"></script>
 </body>
 
 </html>

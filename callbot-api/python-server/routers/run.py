@@ -42,12 +42,15 @@ async def run_testcases(request: RunTestcasesRequest):
         
         try:
             # Run testcase với LangGraph
+            # Ưu tiên bot_url của testcase, fallback về request.bot_url
+            bot_url = tc.bot_url if tc.bot_url else request.bot_url
             result = await run_testcase(
                 code=tc.code,
                 name=tc.name,
                 group=tc.group,
                 turns=turns,
-                criteria=tc.criteria
+                criteria=tc.criteria,
+                bot_url=bot_url
             )
             
             results.append(
@@ -101,7 +104,8 @@ async def run_single(request: RunSingleRequest):
             name=request.code,
             group=request.group,
             turns=turns,
-            criteria=request.criteria
+            criteria=request.criteria,
+            bot_url=request.bot_url
         )
         
         return {
@@ -150,12 +154,15 @@ async def run_testcases_stream(request: RunTestcasesRequest):
             # ⚠️ QUAN TRỌNG: tạo turns ngay tại đây, không dùng biến ngoài
             tc_turns = [{"question": t.question, "expected": t.expected} for t in testcase.turns]
             try:
+                # Ưu tiên bot_url của testcase, fallback về request.bot_url
+                bot_url = testcase.bot_url if testcase.bot_url else request.bot_url
                 result = await run_testcase(
                     code=testcase.code,
                     name=testcase.name,
                     group=testcase.group,
                     turns=tc_turns,
-                    criteria=testcase.criteria
+                    criteria=testcase.criteria,
+                    bot_url=bot_url
                 )
                 return {
                     "index": index,

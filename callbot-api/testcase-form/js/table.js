@@ -10,7 +10,10 @@ export function setRunSingleFn(fn) { _runSingleFn = fn; }
 export function getTestcases() { return testcases; }
 
 export function addTestcase(tc) {
-  testcases.push(initRow(tc));
+  console.log('🔍 addTestcase - Input tc:', tc);
+  const newTc = initRow(tc);
+  console.log('🔍 addTestcase - After initRow:', newTc);
+  testcases.push(newTc);
   renderEval();
 }
 
@@ -26,7 +29,26 @@ export function deleteTestcase(idx) {
 
 export function clearAllTestcases() {
   testcases = [];
+  selectedIndices.clear(); // Clear selection
   renderEval();
+  updateSelectionUI(); // Update compare button
+
+  // Force enable upload zone (in case it was disabled during run)
+  const fileInput = document.getElementById('file-input');
+  const uploadZone = document.getElementById('upload-zone');
+
+  if (fileInput) {
+    fileInput.disabled = false;
+    fileInput.value = ''; // Reset file input
+    console.log('✅ File input enabled and reset');
+  }
+
+  if (uploadZone) {
+    uploadZone.style.opacity = '1';
+    uploadZone.style.cursor = 'pointer';
+    uploadZone.style.pointerEvents = 'auto';
+    console.log('✅ Upload zone enabled');
+  }
 }
 
 export function updateTestcase(idx, updatedTc) {
@@ -56,6 +78,7 @@ function duplicateTestcase(idx) {
     name: tc.name + ' (copy)',
     group: tc.group,
     criteria: tc.criteria,
+    bot_url: tc.bot_url,  // Copy bot_url
     turns: tc.turns.map(t => ({
       question: t.question,
       expected: t.expected
@@ -138,11 +161,16 @@ function initRow(tc) {
   if (!turns) {
     turns = [{ question: tc.question ?? '', expected: tc.expected ?? '' }];
   }
+
+  console.log('🔍 initRow - tc.bot_url:', tc.bot_url);
+  console.log('🔍 initRow - saved bot_url:', tc.bot_url || null);
+
   return {
     code: tc.code,
     name: tc.name,
     group: tc.group,
     criteria: tc.criteria || 'standard',
+    bot_url: tc.bot_url || null,
     status: 'pending',
     error: '',
     turns: turns.map(t => ({
@@ -202,6 +230,8 @@ export function renderEval() {
   const rows = filteredTestcases.map((tc, i) => {
     const turnCount = tc.turns.length;
 
+    console.log(`🔍 Rendering TC ${i} - bot_url:`, tc.bot_url);
+
     // Map criteria ID to display name
     const criteriaNames = {
       'standard': 'Chuẩn',
@@ -216,12 +246,22 @@ export function renderEval() {
       const isFirst = j === 0;
       const rowClass = isFirst ? 'tc-first-row' : 'tc-sub-row';
 
+      const checkboxCell = isFirst ? `
+        <td class="col-checkbox" rowspan="${turnCount}">
+          <input type="checkbox" class="tc-checkbox" data-idx="${i}" 
+            ${tc.status !== 'done' ? 'disabled' : ''} />
+        </td>` : '';
+
       const tcCells = isFirst ? `
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
         <td class="col-name" rowspan="${turnCount}">${tc.name}</td>
         <td rowspan="${turnCount}"><span class="tag tag-${tc.group}">${tc.group}</span></td>
-        <td class="col-criteria" rowspan="${turnCount}"><span class="criteria-badge">${criteriaDisplay}</span></td>` : '';
+        <td class="col-criteria" rowspan="${turnCount}"><span class="criteria-badge">${criteriaDisplay}</span></td>
+        <td class="col-bot-url" rowspan="${turnCount}">${tc.bot_url
+          ? `<span class="bot-url-text" title="${tc.bot_url}">${tc.bot_url}</span>`
+          : '<span class="cell-empty">mặc định</span>'
+        }</td>` : '';
 
       const actionCell = isFirst ? `
         <td class="col-actions" rowspan="${turnCount}">
@@ -233,6 +273,7 @@ export function renderEval() {
 
       return `
         <tr class="${rowClass}">
+          ${checkboxCell}
           ${tcCells}
           <td class="col-turn-num">Lượt ${j + 1}</td>
           <td class="col-q">${turn.question}</td>
@@ -252,11 +293,15 @@ export function renderEval() {
       <table>
         <thead>
           <tr>
+            <th class="col-checkbox">
+              <input type="checkbox" id="select-all-checkbox" title="Chọn tất cả" />
+            </th>
             <th>#</th>
             <th>Mã TC</th>
             <th>Tên Testcase</th>
             <th>Nhóm</th>
             <th>LLM Judge</th>
+            <th>Bot URL</th>
             <th>Lượt</th>
             <th>Câu hỏi từ User</th>
             <th>Câu trả lời kỳ vọng</th>
@@ -294,6 +339,87 @@ export function renderEval() {
       el.style.cursor = 'not-allowed';
     });
   }
+
+  // Setup checkbox listeners
+  setupCheckboxListeners();
+}
+
+// ── Checkbox Selection Logic ──────────────────────────────────────────────
+let selectedIndices = new Set();
+
+function setupCheckboxListeners() {
+  const selectAllCheckbox = document.getElementById('select-all-checkbox');
+  const checkboxes = document.querySelectorAll('.tc-checkbox:not([disabled])');
+
+  // Select all
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+        const idx = Number(cb.dataset.idx);
+        if (isChecked) {
+          selectedIndices.add(idx);
+        } else {
+          selectedIndices.delete(idx);
+        }
+      });
+      updateSelectionUI();
+    });
+  }
+
+  // Individual checkboxes
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const idx = Number(e.target.dataset.idx);
+      if (e.target.checked) {
+        selectedIndices.add(idx);
+      } else {
+        selectedIndices.delete(idx);
+      }
+
+      // Update select-all checkbox
+      if (selectAllCheckbox) {
+        selectAllCheckbox.checked = selectedIndices.size === checkboxes.length;
+      }
+
+      updateSelectionUI();
+    });
+  });
+}
+
+function updateSelectionUI() {
+  const count = selectedIndices.size;
+
+  // Update comparison button state
+  const btnCompare = document.getElementById('btn-compare');
+  if (btnCompare) {
+    if (count >= 2 && count <= 10) {
+      btnCompare.disabled = false;
+      btnCompare.textContent = `⚖️ So sánh (${count})`;
+    } else {
+      btnCompare.disabled = true;
+      if (count === 0) {
+        btnCompare.textContent = '⚖️ So sánh';
+      } else if (count === 1) {
+        btnCompare.textContent = '⚖️ So sánh (chọn thêm ≥1)';
+      } else {
+        btnCompare.textContent = `⚖️ So sánh (tối đa 10)`;
+      }
+    }
+  }
+}
+
+export function getSelectedTestcases() {
+  return Array.from(selectedIndices).map(idx => testcases[idx]).filter(tc => tc);
+}
+
+export function clearSelection() {
+  selectedIndices.clear();
+  document.querySelectorAll('.tc-checkbox').forEach(cb => cb.checked = false);
+  const selectAllCheckbox = document.getElementById('select-all-checkbox');
+  if (selectAllCheckbox) selectAllCheckbox.checked = false;
+  updateSelectionUI();
 }
 
 // ── Cell renderers ────────────────────────────────────────────────────────

@@ -31,7 +31,8 @@ async def get_template():
         "Nhóm (A/B/C/D)",
         "Câu hỏi từ User",
         "Câu trả lời kỳ vọng",
-        "LLM Judge (standard/strict/speed-focused/content-only/ux-focused)"
+        "LLM Judge (standard/strict/speed-focused/content-only/ux-focused)",
+        "Bot URL (tùy chọn)"
     ]
     ws.append(headers)
     
@@ -42,12 +43,13 @@ async def get_template():
         "A",
         "đăng ký kết hôn cần giấy tờ gì",
         "Cần CMND/CCCD và giấy xác nhận tình trạng hôn nhân, nộp tại UBND cấp xã",
-        "standard"
+        "standard",
+        ""  # Bot URL để trống = dùng mặc định
     ]
     ws.append(sample)
     
     # Column widths
-    column_widths = [35, 12, 16, 45, 60, 50]
+    column_widths = [35, 12, 16, 45, 60, 50, 40]
     for idx, width in enumerate(column_widths, 1):
         ws.column_dimensions[chr(64 + idx)].width = width
     

@@ -12,12 +12,16 @@ langsmith==0.1.140
 # Data & Validation
 pydantic==2.9.2
 pydantic-settings==2.6.1
+numpy==1.26.4
 
 # HTTP Client
 httpx==0.27.2
 
 # Excel Processing
 openpyxl==3.1.5
+
+# Diff Algorithm
+diff-match-patch==20230430
 
 # Database
 aiosqlite==0.20.0

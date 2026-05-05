@@ -34,7 +34,7 @@ async def export_testcases(request: ExportRequest):
         
         # Headers
         headers = [
-            "Mã TC", "Tên Testcase", "Nhóm", "LLM Judge", "Lượt",
+            "Mã TC", "Tên Testcase", "Nhóm", "LLM Judge", "Bot URL", "Lượt",
             "Câu hỏi từ User", "Câu trả lời kỳ vọng", "Câu trả lời thực tế",
             "Thời gian (ms)", "Kết quả", "Lỗi", "Đề xuất sửa",
             "Mẫu đề xuất", "Nhận xét giọng điệu"
@@ -70,6 +70,7 @@ async def export_testcases(request: ExportRequest):
         # Data rows
         for tc in request.testcases:
             criteria_display = criteria_names.get(tc.criteria, tc.criteria)
+            bot_url_display = tc.bot_url if tc.bot_url else "mặc định"
             
             for idx, turn in enumerate(tc.turns):
                 row = [
@@ -77,6 +78,7 @@ async def export_testcases(request: ExportRequest):
                     tc.name,
                     tc.group,
                     criteria_display,
+                    bot_url_display,
                     f"Lượt {idx + 1}",
                     turn.question,
                     turn.expected,
@@ -91,7 +93,7 @@ async def export_testcases(request: ExportRequest):
                 ws.append(row)
         
         # Column widths
-        column_widths = [12, 35, 8, 15, 10, 40, 40, 40, 12, 10, 40, 40, 40, 40]
+        column_widths = [12, 35, 8, 15, 35, 10, 40, 40, 40, 12, 10, 40, 40, 40, 40]
         for idx, width in enumerate(column_widths, 1):
             ws.column_dimensions[chr(64 + idx)].width = width
         
@@ -101,7 +103,7 @@ async def export_testcases(request: ExportRequest):
         failed_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
         failed_font = Font(color="9C0006", bold=True)
         
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=10, max_col=10):
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=11, max_col=11):
             cell = row[0]
             if cell.value == "PASSED":
                 cell.fill = passed_fill
