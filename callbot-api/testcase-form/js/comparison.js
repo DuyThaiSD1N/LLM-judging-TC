@@ -151,11 +151,6 @@ function renderComparisonTable(testcases) {
                     ? '<span class="verdict-fail">⚠ Cần cải thiện</span>'
                     : '—'}
                 </td>
-                ? '<span class="verdict-pass">✓ PASSED</span>'
-                : turn.verdict === 'FAILED'
-                    ? '<span class="verdict-fail">✕ FAILED</span>'
-                    : '—'}
-                </td>
             </tr>
         `;
     }).join('');
