@@ -226,5 +226,5 @@ class UploadExcelResponse(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    """Request cho export Excel"""
-    testcases: List[TestcaseRunResult]
+    """Request cho export Excel - hỗ trợ cả testcase gốc và testcase có kết quả"""
+    testcases: List[TestcaseRunResult | TestcaseBase]

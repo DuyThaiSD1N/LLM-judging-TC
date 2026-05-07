@@ -77,6 +77,15 @@ async def export_testcases(request: ExportRequest):
                 required_kw = getattr(turn, 'required_keywords', '') or ''
                 forbidden_kw = getattr(turn, 'forbidden_keywords', '') or ''
                 
+                # Hỗ trợ cả Turn (chưa chạy) và TurnResult (đã chạy)
+                actual = getattr(turn, 'actual', '') or ''
+                response_time = getattr(turn, 'response_time_ms', '') or ''
+                verdict = getattr(turn, 'verdict', '') or ''
+                error_desc = getattr(turn, 'error_desc', '') or ''
+                suggestion = getattr(turn, 'suggestion', '') or ''
+                suggested_response = getattr(turn, 'suggested_response', '') or ''
+                tone_note = getattr(turn, 'tone_note', '') or ''
+                
                 row = [
                     tc.name,
                     tc.code,
@@ -87,13 +96,13 @@ async def export_testcases(request: ExportRequest):
                     criteria_display,
                     bot_url_display,
                     f"Lượt {idx + 1}",
-                    turn.actual or "",
-                    turn.response_time_ms or "",
-                    turn.verdict or "",
-                    turn.error_desc or "",
-                    turn.suggestion or "",
-                    turn.suggested_response or "",
-                    turn.tone_note or ""
+                    actual,
+                    response_time,
+                    verdict,
+                    error_desc,
+                    suggestion,
+                    suggested_response,
+                    tone_note
                 ]
                 ws.append(row)
         
