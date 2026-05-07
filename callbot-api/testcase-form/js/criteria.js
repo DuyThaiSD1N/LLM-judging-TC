@@ -61,6 +61,14 @@ function initDropdown() {
     const trigger = document.getElementById('criteria-trigger');
     const popup = document.getElementById('criteria-popup');
 
+    if (!trigger || !popup) {
+        console.error('❌ Criteria dropdown elements not found:', {
+            trigger: !!trigger,
+            popup: !!popup
+        });
+        return;
+    }
+
     trigger.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleDropdown();
@@ -77,6 +85,8 @@ function initDropdown() {
             closeDropdown();
         }
     });
+
+    console.log('✅ Criteria dropdown initialized');
 }
 
 function toggleDropdown() {
@@ -112,6 +122,15 @@ function initModal() {
     const btnInfo = document.getElementById('btn-criteria-info');
     const modal = document.getElementById('criteria-modal');
     const btnClose = document.getElementById('btn-close-criteria');
+
+    if (!btnInfo || !modal || !btnClose) {
+        console.error('❌ Criteria modal elements not found:', {
+            btnInfo: !!btnInfo,
+            modal: !!modal,
+            btnClose: !!btnClose
+        });
+        return;
+    }
 
     btnInfo.addEventListener('click', () => {
         openModal();

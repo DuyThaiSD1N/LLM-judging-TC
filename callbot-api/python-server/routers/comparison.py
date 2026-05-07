@@ -4,12 +4,13 @@ Comparison router - So sánh testcases với LLM analysis và semantic similarit
 
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import asyncio
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langsmith import traceable
 import numpy as np
 import os
+import re
 from diff_match_patch import diff_match_patch
 
 router = APIRouter()
@@ -44,14 +45,16 @@ class TestcaseCompareData(BaseModel):
     """Dữ liệu testcase để so sánh"""
     code: str
     name: str
-    group: str
     bot_url: Optional[str]
     question: str
     expected: str
     actual: str
     response_time_ms: Optional[int]
-    verdict: Optional[str]
+    # Removed verdict field - LLM tự đánh giá dựa trên expected vs actual
     error_desc: str = ""
+    # Keywords để hỗ trợ LLM đánh giá (optional)
+    required_keywords: Optional[str] = None  # Từ khóa BẮT BUỘC phải có trong response
+    forbidden_keywords: Optional[str] = None  # Từ khóa KHÔNG ĐƯỢC có trong response
 
 
 class CompareRequest(BaseModel):
@@ -178,9 +181,6 @@ def _compute_metrics(testcases: List[TestcaseCompareData]) -> Dict[str, Any]:
     slowest = max(times) if times else 0
     average = int(sum(times) / len(times)) if times else 0
     
-    passed = sum(1 for tc in testcases if tc.verdict == "PASSED")
-    pass_rate = round((passed / len(testcases)) * 100) if testcases else 0
-    
     fastest_tc = next((tc for tc in testcases if tc.response_time_ms == fastest), None)
     slowest_tc = next((tc for tc in testcases if tc.response_time_ms == slowest), None)
     
@@ -190,8 +190,6 @@ def _compute_metrics(testcases: List[TestcaseCompareData]) -> Dict[str, Any]:
         "slowest_ms": slowest,
         "slowest_code": slowest_tc.code if slowest_tc else None,
         "average_ms": average,
-        "pass_rate": pass_rate,
-        "passed_count": passed,
         "total_count": len(testcases),
     }
 
@@ -204,6 +202,90 @@ def _classify_time(ms: int) -> Dict[str, str]:
         return {"label": "Chấp nhận được", "level": "ok"}
     else:
         return {"label": "Chậm", "level": "slow"}
+
+
+def _clean_forbidden_words(data):
+    """
+    ULTRA AGGRESSIVE - Loại bỏ và THAY THẾ các từ cấm khỏi response của LLM
+    Đặc biệt xử lý: "Failed: X" → "X" (bỏ "Failed:" ở đầu)
+    """
+    
+    def clean_text(text):
+        if not isinstance(text, str):
+            return text
+        
+        original = text
+        
+        # STEP 1: Xử lý "Failed: X" / "FAILED: X" ở đầu câu → chỉ giữ lại X
+        # Pattern: "Failed: Thiếu thông tin..." → "Thiếu thông tin..."
+        text = re.sub(
+            r'\b(?:Failed|FAILED|Fail|FAIL):\s*',
+            '',
+            text,
+            flags=re.IGNORECASE
+        )
+        
+        # STEP 2: Thay thế TOÀN BỘ câu chứa "Verdict: FAILED/PASSED vì X"
+        # Pattern 1: "Verdict: FAILED vì X" → "Response còn thiếu X"
+        text = re.sub(
+            r'Verdict:\s*(?:FAILED|Fail|failed|FAIL)\s*(?:vì|do|bởi vì)?\s*(.+?)(?:\.|$|,)',
+            lambda m: f"Response còn thiếu {m.group(1).strip()}" if m.group(1) else "Response chưa đầy đủ",
+            text,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
+        
+        # Pattern 2: "Verdict: PASSED vì X" → "Response đã có đầy đủ X"
+        text = re.sub(
+            r'Verdict:\s*(?:PASSED|Pass|passed|PASS)\s*(?:vì|do|bởi vì)?\s*(.+?)(?:\.|$|,)',
+            lambda m: f"Response đã có đầy đủ {m.group(1).strip()}" if m.group(1) else "Response đã đầy đủ",
+            text,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
+        
+        # STEP 3: Xóa BẤT KỲ "Verdict:" nào còn sót lại (kể cả không có PASSED/FAILED)
+        text = re.sub(r'Verdict:\s*[^\n]*', '', text, flags=re.IGNORECASE)
+        
+        # STEP 4: Thay thế standalone "FAILED" / "PASSED" / "FAIL" / "PASS"
+        text = re.sub(r'\b(?:FAILED|Fail|failed|FAIL)\b', 'chưa đáp ứng', text, flags=re.IGNORECASE)
+        text = re.sub(r'\b(?:PASSED|Pass|passed|PASS)\b', 'đã đáp ứng', text, flags=re.IGNORECASE)
+        
+        # STEP 5: XÓA HOÀN TOÀN các dòng còn chứa "verdict" (bất kỳ biến thể nào)
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            # Check for "verdict" in any form
+            if re.search(r'verdict', line, flags=re.IGNORECASE):
+                print(f"🗑️ REMOVED LINE containing 'verdict': {line[:100]}")
+                # Replace with neutral statement
+                cleaned_lines.append("Response cần được đánh giá thêm.")
+                continue
+            cleaned_lines.append(line)
+        text = '\n'.join(cleaned_lines)
+        
+        # STEP 6: Clean up multiple empty lines
+        text = re.sub(r'\n\n+', '\n\n', text)
+        
+        result = text.strip()
+        
+        # Log nếu có thay đổi
+        if result != original and len(original) > 0:
+            print(f"🧹 Cleaned: '{original[:80]}...' → '{result[:80]}...'")
+        
+        return result
+    
+    def clean_recursive(obj):
+        if isinstance(obj, dict):
+            return {k: clean_recursive(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [clean_recursive(item) for item in obj]
+        elif isinstance(obj, str):
+            return clean_text(obj)
+        else:
+            return obj
+    
+    cleaned = clean_recursive(data)
+    print("✅ Ultra-aggressive cleaning completed")
+    return cleaned
 
 
 def _compute_diff(text1: str, text2: str) -> tuple[List[DiffOperation], str, float]:
@@ -268,6 +350,65 @@ def _compute_all_diffs(testcases: List[TestcaseCompareData]) -> List[DiffPair]:
     return diff_pairs
 
 
+class PerformanceItem(BaseModel):
+    """Performance analysis item"""
+    testcase_code: str
+    time_ms: int
+    evaluation: str
+    reason: str
+
+class PerformanceAnalysis(BaseModel):
+    """Performance analysis"""
+    fastest: PerformanceItem
+    slowest: PerformanceItem
+    overall_speed: str
+
+class BestResponse(BaseModel):
+    """Best response analysis"""
+    testcase_code: str
+    reason: str
+    strengths: List[str]
+
+class WeakestResponse(BaseModel):
+    """Weakest response analysis"""
+    testcase_code: str
+    reason: str
+    weaknesses: List[str]
+    missing_info: List[str]
+
+class ContentAnalysis(BaseModel):
+    """Content analysis"""
+    best_response: BestResponse
+    weakest_response: WeakestResponse
+    similarity_note: str
+
+class Recommendation(BaseModel):
+    """Recommendation item"""
+    priority: str
+    target: str
+    category: str
+    title: str
+    description: str
+    specific_actions: List[str]
+    expected_improvement: str
+
+class RankingItem(BaseModel):
+    """Ranking item"""
+    rank: int
+    testcase_code: str
+    score: float
+    reason: str
+
+class ComparisonAnalysisOutput(BaseModel):
+    """Structured output for comparison analysis"""
+    overview: str
+    performance_analysis: PerformanceAnalysis
+    content_analysis: ContentAnalysis
+    recommendations: List[Recommendation]
+    ranking: List[RankingItem]
+    conclusion: str
+
+
 @traceable(name="llm_compare_analysis", run_type="chain")
 async def _analyze_with_llm(
     testcases: List[TestcaseCompareData],
@@ -276,24 +417,45 @@ async def _analyze_with_llm(
     metrics: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Phân tích comparison với LLM
-    Trả về insights, patterns, outliers, và suggestions
+    Phân tích comparison với LLM - Đánh giá khách quan
+    Trả về insights, performance analysis, và recommendations
+    
+    SỬ DỤNG STRUCTURED OUTPUT để ép LLM tuân thủ format
     """
     
     # Prepare context for LLM
     tc_summaries = []
     for i, tc in enumerate(testcases):
         time_class = _classify_time(tc.response_time_ms) if tc.response_time_ms else {"label": "N/A", "level": "unknown"}
-        tc_summaries.append(
+        
+        # Format multi-line text with proper indentation
+        question_formatted = tc.question.replace('\n', '\n     ')
+        expected_formatted = tc.expected.replace('\n', '\n     ')
+        actual_formatted = (tc.actual or 'N/A').replace('\n', '\n     ')
+        
+        # Build summary with optional keywords
+        summary = (
             f"[{i+1}] {tc.code} - {tc.name}\n"
             f"  Bot URL: {tc.bot_url or 'mặc định'}\n"
-            f"  Câu hỏi: {tc.question}\n"
-            f"  Kỳ vọng: {tc.expected[:100]}...\n"
-            f"  Thực tế: {tc.actual[:100] if tc.actual else 'N/A'}...\n"
-            f"  Thời gian: {tc.response_time_ms}ms ({time_class['label']})\n"
-            f"  Kết quả: {tc.verdict or 'N/A'}\n"
-            f"  Lỗi: {tc.error_desc[:100] if tc.error_desc else 'Không có'}...\n"
+            f"  Câu hỏi:\n"
+            f"     {question_formatted}\n"
+            f"  Kỳ vọng:\n"
+            f"     {expected_formatted}\n"
         )
+        
+        # Add keywords if provided
+        if tc.required_keywords:
+            summary += f"  Từ khóa BẮT BUỘC phải có: {tc.required_keywords}\n"
+        if tc.forbidden_keywords:
+            summary += f"  Từ khóa KHÔNG ĐƯỢC có: {tc.forbidden_keywords}\n"
+        
+        summary += (
+            f"  Thực tế:\n"
+            f"     {actual_formatted}\n"
+            f"  Thời gian: {tc.response_time_ms}ms ({time_class['label']})\n"
+        )
+        
+        tc_summaries.append(summary)
     
     # Prepare similarity insights
     similarity_insights = []
@@ -301,81 +463,185 @@ async def _analyze_with_llm(
     for i in range(n):
         for j in range(i + 1, n):
             sim = similarity_matrix[i][j]
-            if sim >= 0.9:
-                level = "rất cao"
-            elif sim >= 0.7:
-                level = "cao"
-            elif sim >= 0.5:
-                level = "trung bình"
-            else:
-                level = "thấp"
             similarity_insights.append(
-                f"  - {testcases[i].code} vs {testcases[j].code}: {sim:.2%} ({level})"
+                f"  - {testcases[i].code} vs {testcases[j].code}: {sim:.2%}"
             )
     
-    prompt_text = f"""Bạn là chuyên gia phân tích chất lượng chatbot. Hãy phân tích kết quả so sánh {len(testcases)} testcases sau:
+    # Prepare system message - SIMPLIFIED AND DIRECT
+    system_message = """Bạn là chuyên gia phân tích chatbot. Nhiệm vụ: So sánh response thực tế với kỳ vọng.
 
-## Chế độ so sánh: {comparison_mode}
-- bot_url: So sánh cùng câu hỏi, khác bot URL
-- time: So sánh cùng câu hỏi và bot URL (focus vào thời gian)
-- free: So sánh tự do
+🚫 CÁC TỪ TUYỆT ĐỐI CẤM (KHÔNG BAO GIỜ DÙNG):
+- "Verdict" (bất kỳ dạng nào: Verdict:, verdict, VERDICT)
+- "PASSED" / "FAILED" / "Pass" / "Fail" (bất kỳ dạng nào)
+- "Failed:" / "FAILED:" (đặc biệt CẤM ở đầu câu)
+
+✅ CHỈ ĐƯỢC DÙNG:
+- "Response đã có X/Y thông tin"
+- "Còn thiếu: [liệt kê]"
+- "Đã đáp ứng: [liệt kê]"
+- "Cần bổ sung: [liệt kê]"
+- "Thiếu thông tin về..."
+- "Chưa đầy đủ về..."
+
+CÁCH VIẾT ĐÚNG:
+❌ SAI: "Failed: Thiếu thông tin về thời hạn"
+✅ ĐÚNG: "Thiếu thông tin về thời hạn"
+
+❌ SAI: "FAILED vì không có giấy tờ"
+✅ ĐÚNG: "Chưa đề cập đến giấy tờ cần thiết"
+
+❌ SAI: "Verdict: Response còn thiếu..."
+✅ ĐÚNG: "Response còn thiếu..."
+
+CÁCH PHÂN TÍCH:
+1. Liệt kê thông tin KỲ VỌNG yêu cầu (từng điểm)
+2. Kiểm tra từ khóa BẮT BUỘC (nếu có)
+3. Kiểm tra từ khóa CẤM (nếu có)
+4. Liệt kê thông tin THỰC TẾ đã có (từng điểm)
+5. So sánh: Thông tin nào ĐÃ CÓ ✓, thông tin nào CÒN THIẾU ✗
+6. Kết luận: "Response đáp ứng X/Y thông tin"
+
+VÍ DỤ HOÀN CHỈNH:
+"Response đáp ứng 3/5 thông tin (60%). Đã có: nộp hồ sơ, chấm điểm, thông báo. Còn thiếu: khảo sát thực tế, thời hạn xử lý."
+
+Trả về JSON theo format yêu cầu. Mỗi trường phải DÀI, CHI TIẾT, CỤ THỂ (150+ từ)."""
+
+    # Prepare user prompt - SIMPLIFIED for structured output
+    prompt_text = f"""Phân tích {len(testcases)} testcase sau:
 
 ## Testcases:
 {chr(10).join(tc_summaries)}
 
-## Metrics tổng quan:
+## Metrics:
 - Nhanh nhất: {metrics['fastest_ms']}ms ({metrics['fastest_code']})
 - Chậm nhất: {metrics['slowest_ms']}ms ({metrics['slowest_code']})
 - Trung bình: {metrics['average_ms']}ms
-- Pass rate: {metrics['pass_rate']}% ({metrics['passed_count']}/{metrics['total_count']})
 
 ## Semantic Similarity:
 {chr(10).join(similarity_insights)}
 
-Hãy phân tích và trả về JSON với cấu trúc sau:
-{{
-  "overview": "Tóm tắt tổng quan về kết quả so sánh (2-3 câu)",
-  "patterns": [
-    {{"description": "Mô tả pattern", "severity": "Info|Warning|Critical"}}
-  ],
-  "outliers": [
-    {{"testcase_code": "TC001", "reason": "Lý do là outlier", "severity": "Minor|Major|Critical"}}
-  ],
-  "suggestions": [
-    {{
-      "priority": "Critical|Major|Minor",
-      "title": "Tiêu đề ngắn gọn",
-      "description": "Mô tả chi tiết đề xuất",
-      "affected_testcases": ["TC001", "TC002"]
-    }}
-  ],
-  "time_analysis": "Phân tích về thời gian phản hồi",
-  "quality_analysis": "Phân tích về chất lượng câu trả lời",
-  "conclusion": "Kết luận và hành động tiếp theo"
-}}
+Hãy phân tích và trả về:
 
-Lưu ý:
-- Tập trung vào insights thực tế, không chung chung
-- Đề xuất phải cụ thể và có thể thực hiện được
-- Ưu tiên các vấn đề Critical và Major
-- Nếu comparison_mode là "bot_url", focus vào so sánh giữa các bot
-- Nếu comparison_mode là "time", focus vào performance
+1. **overview**: Tóm tắt tổng quan (TC nào tốt, TC nào cần cải thiện, với số liệu cụ thể)
+
+2. **performance_analysis**:
+   - fastest: TC nhanh nhất với đánh giá chi tiết (100+ từ)
+   - slowest: TC chậm nhất với phân tích nguyên nhân (100+ từ)
+   - overall_speed: Đánh giá chung về tốc độ
+
+3. **content_analysis**:
+   - best_response: TC có nội dung tốt nhất
+     * So sánh KỲ VỌNG vs THỰC TẾ (TỪNG ĐIỂM CỤ THỂ)
+     * Liệt kê điểm mạnh với trích dẫn
+   - weakest_response: TC có nội dung yếu nhất
+     * So sánh KỲ VỌNG vs THỰC TẾ (TỪNG ĐIỂM CỤ THỂ)
+     * Phân tích CHI TIẾT từng lỗi:
+       + Lỗi gì? (thiếu thông tin / sai thông tin / không rõ ràng)
+       + Thiếu ở đâu? (đầu / giữa / cuối response)
+       + Tác động gì? (user không hiểu / không làm được / hiểu sai)
+       + Mức độ nghiêm trọng? (Critical / Major / Minor)
+     * Liệt kê TỪNG thông tin còn thiếu với vị trí cụ thể
+     * Đề xuất vị trí cần bổ sung (sau câu nào, trước đoạn nào)
+   - similarity_note: Phân tích độ tương đồng
+
+4. **recommendations**: Danh sách đề xuất cải thiện (CHI TIẾT)
+   - Mỗi đề xuất có: priority, target, category, title, description, specific_actions, expected_improvement
+   - **description** phải CHI TIẾT (150+ từ):
+     + Hiện trạng: Response hiện tại như thế nào? Thiếu gì cụ thể?
+     + Tác động: Ảnh hưởng đến user ra sao? (không hiểu / không làm được / mất thời gian)
+     + Yêu cầu: Cần bổ sung thông tin gì? Ở vị trí nào? Với format như thế nào?
+     + Ví dụ cụ thể: Nên viết như thế nào?
+   - **specific_actions** phải là các bước CỤ THỂ (không chung chung):
+     + ❌ KHÔNG viết: "Bổ sung thông tin"
+     + ✅ PHẢI viết: "Thêm câu 'Thời hạn xử lý: 15 ngày làm việc' sau đoạn giới thiệu thủ tục"
+   - **TUYỆT ĐỐI KHÔNG dùng "Failed:" trong description hay specific_actions**
+
+5. **ranking**: Xếp hạng các TC từ tốt nhất đến yếu nhất
+   - Mỗi TC có: rank, testcase_code, score (0-10), reason
+   - **reason** phải phân tích CHI TIẾT:
+     + (1) Tốc độ: Nhanh/chậm bao nhiêu so với trung bình? Tại sao?
+     + (2) Nội dung: Đáp ứng bao nhiêu % thông tin? Thiếu gì cụ thể?
+     + (3) Độ chính xác: Có thông tin sai không? Có rõ ràng không?
+     + (4) Keywords: Có đầy đủ từ khóa bắt buộc không? Có vi phạm từ khóa cấm không?
+
+6. **conclusion**: Kết luận với ưu tiên hành động (Critical → High → Medium)
+   - Liệt kê TỪNG hành động cụ thể cần làm ngay
+   - Không viết chung chung, phải có TC code + vị trí + nội dung cần sửa
+
+**QUY TẮC QUAN TRỌNG:**
+- Dùng: "Thiếu...", "Còn thiếu...", "Cần bổ sung...", "Chưa đề cập..."
+- TUYỆT ĐỐI KHÔNG dùng: "Verdict", "PASSED", "FAILED", "Pass", "Fail", "Failed:"
+- Mỗi phân tích phải DÀI, CHI TIẾT, CỤ THỂ (150+ từ)
+- Phải có cấu trúc: Hiện trạng → So sánh → Phân tích → Kết luận
+- Phải chỉ rõ VỊ TRÍ cần sửa (sau câu nào, trước đoạn nào, ở đầu/giữa/cuối)
+- Phải có VÍ DỤ CỤ THỂ về cách sửa (nên viết như thế nào)
 """
     
     try:
-        # Invoke LLM với JSON mode
+        # Invoke LLM với STRUCTURED OUTPUT (không dùng JSON mode)
+        from langchain_core.messages import SystemMessage, HumanMessage
+        
         llm = ChatOpenAI(
-            model="gpt-4o-mini",
-            temperature=0.3,
+            model="gpt-4o",
+            temperature=0.0,  # Giảm xuống 0 để deterministic
             api_key=os.getenv("OPENAI_API_KEY"),
-            model_kwargs={"response_format": {"type": "json_object"}}
         )
         
-        response = await llm.ainvoke(prompt_text)
+        # Use structured output - ép LLM phải trả về đúng schema
+        structured_llm = llm.with_structured_output(ComparisonAnalysisOutput)
         
-        # Parse JSON response
-        import json
-        result = json.loads(response.content)
+        messages = [
+            SystemMessage(content=system_message),
+            HumanMessage(content=prompt_text)
+        ]
+        
+        # Invoke với retry logic
+        max_retries = 2
+        result_obj = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Invoke và nhận Pydantic object
+                result_obj = await structured_llm.ainvoke(messages)
+                
+                # Validate required fields
+                result_dict = result_obj.model_dump()
+                
+                # Check if all required fields are present and not empty
+                if not result_dict.get("content_analysis", {}).get("similarity_note"):
+                    raise ValueError("Missing similarity_note")
+                if not result_dict.get("recommendations") or len(result_dict.get("recommendations", [])) == 0:
+                    raise ValueError("Missing or empty recommendations")
+                if not result_dict.get("ranking") or len(result_dict.get("ranking", [])) == 0:
+                    raise ValueError("Missing or empty ranking")
+                if not result_dict.get("conclusion"):
+                    raise ValueError("Missing conclusion")
+                
+                # All fields present, break retry loop
+                print(f"✅ LLM response validated successfully on attempt {attempt + 1}")
+                break
+                
+            except Exception as e:
+                print(f"⚠️ Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                if attempt == max_retries - 1:
+                    # Last attempt failed, use fallback
+                    print("❌ All retries failed, using fallback response")
+                    result_obj = None
+                    break
+                # Retry with more explicit prompt
+                messages.append(HumanMessage(content="\n\n**CRITICAL: You MUST include ALL required fields: similarity_note (string), recommendations (non-empty list), ranking (non-empty list), and conclusion (string). Do not skip any field!**"))
+        
+        # If all retries failed, use fallback
+        if result_obj is None:
+            raise ValueError("Failed to get valid response from LLM after retries")
+        
+        # Convert Pydantic to dict
+        result = result_obj.model_dump()
+        
+        # POST-PROCESSING: Loại bỏ các từ cấm nếu LLM vẫn vi phạm
+        print("🔍 Before cleaning:", str(result)[:500])
+        result = _clean_forbidden_words(result)
+        print("✅ After cleaning:", str(result)[:500])
         
         return result
         
@@ -383,17 +649,27 @@ Lưu ý:
         print(f"❌ LLM analysis error: {str(e)}")
         return {
             "overview": "Không thể phân tích do lỗi LLM",
-            "patterns": [],
-            "outliers": [],
-            "suggestions": [{
+            "performance_analysis": {
+                "fastest": {"testcase_code": "", "time_ms": 0, "evaluation": "N/A", "reason": ""},
+                "slowest": {"testcase_code": "", "time_ms": 0, "evaluation": "N/A", "reason": ""},
+                "overall_speed": "N/A"
+            },
+            "content_analysis": {
+                "best_response": {"testcase_code": "", "reason": "", "strengths": []},
+                "weakest_response": {"testcase_code": "", "reason": "", "weaknesses": [], "missing_info": []},
+                "similarity_note": "Không thể phân tích do lỗi LLM"
+            },
+            "recommendations": [{
                 "priority": "Critical",
+                "target": "All",
+                "category": "System",
                 "title": "LLM Analysis Failed",
-                "description": f"Error: {str(e)}",
-                "affected_testcases": []
+                "description": f"Lỗi: {str(e)}. Vui lòng thử lại sau.",
+                "specific_actions": ["Kiểm tra kết nối API", "Thử lại sau vài phút"],
+                "expected_improvement": "N/A"
             }],
-            "time_analysis": "N/A",
-            "quality_analysis": "N/A",
-            "conclusion": "Vui lòng thử lại sau"
+            "ranking": [{"rank": 1, "testcase_code": "N/A", "score": 0, "reason": "Không thể xếp hạng do lỗi LLM"}],
+            "conclusion": "Không thể hoàn thành phân tích. Vui lòng thử lại sau."
         }
 
 
@@ -476,7 +752,6 @@ async def get_cache_stats():
     }
 
 
-
 class SuggestionGroup(BaseModel):
     """Nhóm testcases được đề xuất để so sánh"""
     title: str
@@ -546,33 +821,6 @@ async def suggest_comparisons(testcases: List[TestcaseCompareData]):
                         testcase_indices=[fastest_idx, slowest_idx],
                         priority="medium"
                     ))
-    
-    # 3. Suggest: Same question, one passed one failed
-    for question, indices in question_groups.items():
-        if len(indices) >= 2:
-            passed = [i for i in indices if testcases[i].verdict == "PASSED"]
-            failed = [i for i in indices if testcases[i].verdict == "FAILED"]
-            
-            if passed and failed:
-                # Pick one from each
-                suggestions.append(SuggestionGroup(
-                    title=f"So sánh PASSED vs FAILED",
-                    reason=f"Cùng câu hỏi '{question[:50]}...' nhưng kết quả khác nhau",
-                    testcase_codes=[testcases[passed[0]].code, testcases[failed[0]].code],
-                    testcase_indices=[passed[0], failed[0]],
-                    priority="high"
-                ))
-    
-    # 4. Suggest: All failed testcases (if 2-10)
-    failed_indices = [i for i, tc in enumerate(testcases) if tc.verdict == "FAILED"]
-    if 2 <= len(failed_indices) <= 10:
-        suggestions.append(SuggestionGroup(
-            title=f"So sánh tất cả {len(failed_indices)} testcases FAILED",
-            reason="Tìm pattern chung trong các testcases thất bại",
-            testcase_codes=[testcases[i].code for i in failed_indices],
-            testcase_indices=failed_indices,
-            priority="high"
-        ))
     
     # Sort by priority
     priority_order = {"high": 0, "medium": 1, "low": 2}

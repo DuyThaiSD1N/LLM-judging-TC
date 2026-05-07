@@ -29,10 +29,13 @@ async def get_testcases():
 @router.post("/testcases")
 async def create_testcase(testcase: TestcaseCreate):
     """
-    Tạo testcase mới
+    Tạo testcase mới HOẶC thêm turns vào testcase đã tồn tại (conversation mode)
     
     POST /api/testcases
-    Body: { code, name, group, turns }
+    Body: { code, name, group, bot_url, turns }
+    
+    - Nếu code chưa tồn tại → Tạo testcase mới
+    - Nếu code đã tồn tại → Thêm turns mới vào testcase đó (như tiếp tục cuộc hội thoại)
     """
     try:
         testcase_dict = testcase.model_dump()
@@ -42,10 +45,18 @@ async def create_testcase(testcase: TestcaseCreate):
         ]
         
         testcase_id = Testcase.create(testcase_dict)
-        return {"success": True, "id": testcase_id}
+        
+        # Kiểm tra xem là tạo mới hay thêm turns
+        existing = Testcase.get_by_code(testcase.code)
+        is_new = len(existing["turns"]) == len(testcase.turns)
+        
+        return {
+            "success": True,
+            "id": testcase_id,
+            "mode": "created" if is_new else "appended",
+            "total_turns": len(existing["turns"])
+        }
     except Exception as e:
-        if "UNIQUE constraint" in str(e):
-            raise HTTPException(status_code=409, detail="Testcase code already exists")
         raise HTTPException(status_code=500, detail=str(e))
 
 

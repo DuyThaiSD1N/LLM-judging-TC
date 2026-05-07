@@ -1,13 +1,9 @@
 """
-Upload Excel router - Import testcases từ Excel
+Upload Excel router - Import testcases từ Excel với hỗ trợ merged cells
 """
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
 import openpyxl
-import os
 from io import BytesIO
 
 from models.schemas import UploadExcelResponse, TestcaseBase, Turn
@@ -16,136 +12,127 @@ from models.schemas import UploadExcelResponse, TestcaseBase, Turn
 router = APIRouter()
 
 
-def parse_excel(file_content: bytes):
-    """Đọc Excel và trả về rows"""
+def parse_excel_with_merged_cells(file_content: bytes):
+    """
+    Đọc Excel và xử lý merged cells
+    Các dòng có cùng Mã TC (merged cells) sẽ được gộp thành 1 testcase với nhiều turns
+    
+    Returns:
+        List[dict]: Danh sách testcases đã group theo Mã TC
+    """
     workbook = openpyxl.load_workbook(BytesIO(file_content))
     sheet = workbook.active
     
-    rows = []
-    for row in sheet.iter_rows(values_only=True):
-        if row and any(cell for cell in row if cell):
-            rows.append(list(row))
+    # Get all rows
+    all_rows = []
+    for row in sheet.iter_rows(values_only=False):  # Get cell objects, not just values
+        if row and any(cell.value for cell in row if cell.value):
+            all_rows.append(row)
     
-    return rows
-
-
-def validate_excel_data(rows):
-    """Validate dữ liệu Excel"""
-    errors = []
+    if len(all_rows) < 2:
+        return []
     
-    # Lọc bỏ các dòng trống
-    filtered_rows = [row for row in rows if row and any(cell for cell in row if cell)]
+    # Header row (skip it)
+    data_rows = all_rows[1:]
     
-    if not filtered_rows:
-        return {"valid": False, "error": "File Excel trống hoặc không đọc được"}
+    # Parse data with merged cell handling
+    testcases_dict = {}  # {tc_code: {name, code, criteria, bot_url, turns: []}}
     
-    # Kiểm tra header
-    header = filtered_rows[0]
-    if len(header) < 5:
-        return {
-            "valid": False,
-            "error": f"File Excel không đúng định dạng. Cần ít nhất 5 cột. Hiện tại chỉ có {len(header)} cột."
-        }
+    last_name = None
+    last_code = None
+    last_criteria = None
+    last_bot_url = None
     
-    # Kiểm tra dữ liệu
-    data_rows = filtered_rows[1:]
-    if not data_rows:
-        return {"valid": False, "error": "File Excel không có dữ liệu testcase nào"}
-    
-    # Validate từng dòng
-    valid_groups = ["A", "B", "C", "D"]
-    valid_criteria = ["standard", "strict", "speed-focused", "content-only", "ux-focused"]
-    
-    for idx, row in enumerate(data_rows):
-        row_num = idx + 2
-        name, code, group, question, expected = row[:5] if len(row) >= 5 else [None] * 5
-        criteria = row[5] if len(row) > 5 else None
+    for row_idx, row in enumerate(data_rows):
+        # Extract values from cells
+        name = row[0].value if len(row) > 0 else None
+        code = row[1].value if len(row) > 1 else None
+        question = row[2].value if len(row) > 2 else None
+        expected = row[3].value if len(row) > 3 else None
+        required_keywords = row[4].value if len(row) > 4 else None
+        forbidden_keywords = row[5].value if len(row) > 5 else None
+        criteria = row[6].value if len(row) > 6 else None
+        bot_url = row[7].value if len(row) > 7 else None
         
-        if not name or str(name).strip() == "":
-            errors.append(f"Dòng {row_num}: Thiếu 'Tên Testcase'")
-        if not code or str(code).strip() == "":
-            errors.append(f"Dòng {row_num}: Thiếu 'Mã Testcase'")
-        if not group or str(group).strip() == "":
-            errors.append(f"Dòng {row_num}: Thiếu 'Nhóm (A/B/C/D)'")
-        elif str(group).strip().upper() not in valid_groups:
-            errors.append(f"Dòng {row_num}: Nhóm '{group}' không hợp lệ. Chỉ chấp nhận: A, B, C, D")
-        if not question or str(question).strip() == "":
-            errors.append(f"Dòng {row_num}: Thiếu 'Câu hỏi từ User'")
-        if not expected or str(expected).strip() == "":
-            errors.append(f"Dòng {row_num}: Thiếu 'Câu trả lời kỳ vọng'")
+        # Handle merged cells: if value is None, use last value
+        if name is None or str(name).strip() == "":
+            name = last_name
+        else:
+            last_name = name
+            
+        if code is None or str(code).strip() == "":
+            code = last_code
+        else:
+            last_code = code
+            
+        if criteria is None or str(criteria).strip() == "":
+            criteria = last_criteria
+        else:
+            last_criteria = criteria
+            
+        if bot_url is None or str(bot_url).strip() == "":
+            bot_url = last_bot_url
+        else:
+            last_bot_url = bot_url
         
-        if criteria and str(criteria).strip():
-            criteria_value = str(criteria).strip().lower()
-            if criteria_value not in valid_criteria:
-                errors.append(
-                    f"Dòng {row_num}: LLM Judge '{criteria}' không hợp lệ. "
-                    f"Chỉ chấp nhận: standard, strict, speed-focused, content-only, ux-focused"
-                )
+        # Skip if essential fields are missing
+        if not code or not question or not expected:
+            print(f"⚠️ Skipping row {row_idx + 2}: Missing essential fields")
+            continue
+        
+        # Normalize values
+        code = str(code).strip()
+        name = str(name).strip() if name else code
+        question = str(question).strip()
+        expected = str(expected).strip()
+        required_keywords = str(required_keywords).strip() if required_keywords and str(required_keywords).strip() else None
+        forbidden_keywords = str(forbidden_keywords).strip() if forbidden_keywords and str(forbidden_keywords).strip() else None
+        criteria = str(criteria).strip().lower() if criteria else "standard"
+        bot_url = str(bot_url).strip() if bot_url and str(bot_url).strip() else None
+        
+        # Group by code
+        if code not in testcases_dict:
+            testcases_dict[code] = {
+                "name": name,
+                "code": code,
+                "criteria": criteria,
+                "bot_url": bot_url,
+                "turns": []
+            }
+        
+        # Add turn
+        testcases_dict[code]["turns"].append({
+            "question": question,
+            "expected": expected,
+            "required_keywords": required_keywords,
+            "forbidden_keywords": forbidden_keywords
+        })
     
-    if errors:
-        error_msg = f"File Excel có {len(errors)} lỗi:\n" + "\n".join(errors[:5])
-        if len(errors) > 5:
-            error_msg += f"\n... và {len(errors) - 5} lỗi khác"
-        return {"valid": False, "error": error_msg}
+    # Convert dict to list
+    testcases = list(testcases_dict.values())
     
-    return {"valid": True, "filtered_rows": filtered_rows}
-
-
-async def map_with_ai(rows):
-    """Gọi OpenAI để map dữ liệu Excel → testcase"""
-    table_text = "\n".join([f"Row {i}: {' | '.join(str(c) for c in r)}" for i, r in enumerate(rows)])
+    print(f"📊 Parsed {len(testcases)} testcases from Excel:")
+    for tc in testcases:
+        print(f"  - {tc['code']}: {tc['name']} ({len(tc['turns'])} turns)")
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("user", """
-Bạn nhận được dữ liệu từ file Excel (mỗi dòng cách nhau bởi |).
-Hãy phân tích và trích xuất thành danh sách testcase theo định dạng JSON.
-
-Mỗi testcase gồm:
-- "name": Tên testcase
-- "code": Mã testcase (dạng TC-XXX)
-- "group": Mã kịch bản, chỉ được là một trong: "A", "B", "C", "D"
-- "question": Câu hỏi từ user
-- "expected": Câu trả lời kỳ vọng
-- "criteria": Tiêu chí LLM Judge (standard/strict/speed-focused/content-only/ux-focused). Nếu không có thì để "standard"
-- "bot_url": URL của bot (nếu có). Nếu không có thì để null
-
-Nếu một trường không tìm thấy, để chuỗi rỗng "" (trừ criteria thì để "standard", bot_url thì để null).
-Trả về JSON với key "testcases" chứa array các testcase.
-
-Dữ liệu Excel:
-{table_text}
-""")
-    ])
-    
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0.2,
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
-    
-    parser = JsonOutputParser()
-    chain = prompt | llm | parser
-    
-    result = await chain.ainvoke({"table_text": table_text})
-    
-    # Extract testcases array
-    if isinstance(result, dict) and "testcases" in result:
-        return result["testcases"]
-    elif isinstance(result, list):
-        return result
-    else:
-        # Find first array in result
-        for key, value in result.items():
-            if isinstance(value, list):
-                return value
-    
-    return []
+    return testcases
 
 
 @router.post("/upload-excel", response_model=UploadExcelResponse)
 async def upload_excel(file: UploadFile = File(...)):
     """
     Upload Excel file và parse thành testcases
+    
+    HỖ TRỢ MERGED CELLS:
+    - Các dòng có cùng Mã TC (ô gộp) sẽ được gộp thành 1 testcase với nhiều turns
+    - Mỗi dòng = 1 lượt hội thoại (1 turn)
+    
+    FORMAT EXCEL:
+    | Tên TC | Mã TC | Câu hỏi | Kỳ vọng | LLM Judge | Bot URL |
+    |--------|-------|---------|---------|-----------|---------|
+    | Hỏi vợ | TC-001| Q1      | A1      | standard  | http... |
+    |        |       | Q2      | A2      |           |         |  <- Merged cells
+    |        |       | Q3      | A3      |           |         |  <- Merged cells
     
     POST /api/upload-excel
     """
@@ -159,36 +146,54 @@ async def upload_excel(file: UploadFile = File(...)):
     try:
         # Read file
         content = await file.read()
-        rows = parse_excel(content)
         
-        # Validate
-        validation = validate_excel_data(rows)
-        if not validation["valid"]:
-            raise HTTPException(status_code=400, detail=validation["error"])
+        # Parse with merged cell support
+        testcases_data = parse_excel_with_merged_cells(content)
         
-        # Map with AI
-        testcases_data = await map_with_ai(validation["filtered_rows"])
+        if not testcases_data:
+            raise HTTPException(status_code=400, detail="File Excel không có dữ liệu testcase hợp lệ")
+        
+        # Validate criteria
+        valid_criteria = ["standard", "strict", "speed-focused", "content-only", "ux-focused"]
+        for tc in testcases_data:
+            if tc["criteria"] not in valid_criteria:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Testcase {tc['code']}: LLM Judge '{tc['criteria']}' không hợp lệ. "
+                           f"Chỉ chấp nhận: {', '.join(valid_criteria)}"
+                )
         
         # Convert to Pydantic models
         testcases = []
         for tc in testcases_data:
+            turns = [
+                Turn(
+                    question=turn["question"],
+                    expected=turn["expected"],
+                    required_keywords=turn.get("required_keywords"),
+                    forbidden_keywords=turn.get("forbidden_keywords")
+                )
+                for turn in tc["turns"]
+            ]
+            
             testcases.append(
                 TestcaseBase(
-                    code=tc.get("code", ""),
-                    name=tc.get("name", ""),
-                    group=tc.get("group", "A"),
-                    turns=[Turn(
-                        question=tc.get("question", ""),
-                        expected=tc.get("expected", "")
-                    )],
-                    criteria=tc.get("criteria", "standard"),
-                    bot_url=tc.get("bot_url")  # None nếu không có
+                    code=tc["code"],
+                    name=tc["name"],
+                    group="GENERAL",
+                    turns=turns,
+                    criteria=tc["criteria"],
+                    bot_url=tc["bot_url"]
                 )
             )
         
+        print(f"✅ Successfully parsed {len(testcases)} testcases with {sum(len(tc.turns) for tc in testcases)} total turns")
         return UploadExcelResponse(testcases=testcases)
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ Error parsing Excel: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Lỗi xử lý file Excel: {str(e)}")

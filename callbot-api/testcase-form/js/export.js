@@ -1,11 +1,19 @@
 // export.js — xuất testcase ra Excel
 
-import { getTestcases } from './table.js';
+import { getTestcases } from './table-v2.js';
 import { showToast } from './toast.js';
 import { API_ENDPOINTS, getAuthHeaders } from './config.js';
 
 export function initExport() {
-    document.getElementById('btn-export').addEventListener('click', exportToExcel);
+    const btnExport = document.getElementById('btn-export');
+
+    if (!btnExport) {
+        console.error('❌ Export button not found');
+        return;
+    }
+
+    btnExport.addEventListener('click', exportToExcel);
+    console.log('✅ Export initialized');
 }
 
 async function exportToExcel() {

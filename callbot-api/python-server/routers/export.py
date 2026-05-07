@@ -32,12 +32,12 @@ async def export_testcases(request: ExportRequest):
         ws = wb.active
         ws.title = "Testcases"
         
-        # Headers
+        # Headers - SAME ORDER AS TEMPLATE
         headers = [
-            "Mã TC", "Tên Testcase", "Nhóm", "LLM Judge", "Bot URL", "Lượt",
-            "Câu hỏi từ User", "Câu trả lời kỳ vọng", "Câu trả lời thực tế",
-            "Thời gian (ms)", "Kết quả", "Lỗi", "Đề xuất sửa",
-            "Mẫu đề xuất", "Nhận xét giọng điệu"
+            "Tên Testcase", "Mã TC", "Câu hỏi từ User", "Câu trả lời kỳ vọng",
+            "Từ khóa BẮT BUỘC", "Từ khóa CẤM", "LLM Judge", "Bot URL",
+            "Lượt", "Câu trả lời thực tế", "Thời gian (ms)", "Kết quả",
+            "Lỗi", "Đề xuất sửa", "Mẫu đề xuất", "Nhận xét giọng điệu"
         ]
         ws.append(headers)
         
@@ -73,15 +73,20 @@ async def export_testcases(request: ExportRequest):
             bot_url_display = tc.bot_url if tc.bot_url else "mặc định"
             
             for idx, turn in enumerate(tc.turns):
+                # Get keywords for this turn
+                required_kw = getattr(turn, 'required_keywords', '') or ''
+                forbidden_kw = getattr(turn, 'forbidden_keywords', '') or ''
+                
                 row = [
-                    tc.code,
                     tc.name,
-                    tc.group,
+                    tc.code,
+                    turn.question,
+                    turn.expected,
+                    required_kw,
+                    forbidden_kw,
                     criteria_display,
                     bot_url_display,
                     f"Lượt {idx + 1}",
-                    turn.question,
-                    turn.expected,
                     turn.actual or "",
                     turn.response_time_ms or "",
                     turn.verdict or "",
@@ -92,18 +97,18 @@ async def export_testcases(request: ExportRequest):
                 ]
                 ws.append(row)
         
-        # Column widths
-        column_widths = [12, 35, 8, 15, 35, 10, 40, 40, 40, 12, 10, 40, 40, 40, 40]
+        # Column widths - SAME ORDER AS TEMPLATE
+        column_widths = [35, 12, 45, 60, 30, 30, 15, 35, 10, 40, 12, 10, 40, 40, 40, 40]
         for idx, width in enumerate(column_widths, 1):
             ws.column_dimensions[chr(64 + idx)].width = width
         
-        # Style verdict cells (PASSED = green, FAILED = red)
+        # Style verdict cells (PASSED = green, FAILED = red) - Column L (12)
         passed_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
         passed_font = Font(color="006100", bold=True)
         failed_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
         failed_font = Font(color="9C0006", bold=True)
         
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=11, max_col=11):
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=12, max_col=12):
             cell = row[0]
             if cell.value == "PASSED":
                 cell.fill = passed_fill

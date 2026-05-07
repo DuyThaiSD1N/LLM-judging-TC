@@ -1,6 +1,6 @@
 // comparison.js — Xử lý so sánh testcase
 
-import { getSelectedTestcases, clearSelection } from './table.js';
+import { getSelectedTestcases, clearSelection } from './table-v2.js';
 import { showToast } from './toast.js';
 
 export function initComparison() {
@@ -146,6 +146,11 @@ function renderComparisonTable(testcases) {
                 <td class="col-time">${timeDisplay}</td>
                 <td class="col-verdict">
                     ${turn.verdict === 'PASSED'
+                ? '<span class="verdict-pass">✓ Đạt yêu cầu</span>'
+                : turn.verdict === 'FAILED'
+                    ? '<span class="verdict-fail">⚠ Cần cải thiện</span>'
+                    : '—'}
+                </td>
                 ? '<span class="verdict-pass">✓ PASSED</span>'
                 : turn.verdict === 'FAILED'
                     ? '<span class="verdict-fail">✕ FAILED</span>'
@@ -264,14 +269,16 @@ async function analyzWithLLM(testcases, mode) {
             testcases: testcases.map(tc => ({
                 code: tc.code,
                 name: tc.name,
-                group: tc.group,
                 bot_url: tc.bot_url || null,
                 question: tc.turns[0]?.question || '',
                 expected: tc.turns[0]?.expected || '',
                 actual: tc.turns[0]?.actual || '',
                 response_time_ms: tc.turns[0]?.response_time_ms || null,
-                verdict: tc.turns[0]?.verdict || null,
-                error_desc: tc.turns[0]?.error_desc || ''
+                // Removed verdict - LLM tự đánh giá dựa trên expected vs actual
+                error_desc: tc.turns[0]?.error_desc || '',
+                // Keywords để hỗ trợ LLM (optional)
+                required_keywords: tc.turns[0]?.required_keywords || null,
+                forbidden_keywords: tc.turns[0]?.forbidden_keywords || null
             })),
             comparison_mode: mode
         };
@@ -313,42 +320,144 @@ async function analyzWithLLM(testcases, mode) {
 function renderLLMAnalysis(result, testcases) {
     const analysis = result.llm_analysis;
 
-    // Render patterns
-    const patternsHtml = analysis.patterns && analysis.patterns.length > 0
-        ? analysis.patterns.map(p => `
-            <div class="insight-item ${p.severity.toLowerCase()}">
-                <span class="insight-icon">${getSeverityIcon(p.severity)}</span>
-                <span class="insight-text">${p.description}</span>
-            </div>
-        `).join('')
-        : '<p class="empty-state">Không phát hiện pattern đặc biệt</p>';
+    // Render Performance Analysis
+    const perfAnalysis = analysis.performance_analysis || {};
+    const fastest = perfAnalysis.fastest || {};
+    const slowest = perfAnalysis.slowest || {};
 
-    // Render outliers
-    const outliersHtml = analysis.outliers && analysis.outliers.length > 0
-        ? analysis.outliers.map(o => `
-            <div class="insight-item ${o.severity.toLowerCase()}">
-                <span class="insight-badge">${o.testcase_code}</span>
-                <span class="insight-text">${o.reason}</span>
-            </div>
-        `).join('')
-        : '<p class="empty-state">Không có outlier</p>';
-
-    // Render suggestions
-    const suggestionsHtml = analysis.suggestions && analysis.suggestions.length > 0
-        ? analysis.suggestions.map(s => `
-            <div class="suggestion-card ${s.priority.toLowerCase()}">
-                <div class="suggestion-header">
-                    <span class="suggestion-priority">${s.priority}</span>
-                    <span class="suggestion-title">${s.title}</span>
+    const performanceHtml = `
+        <div class="perf-grid">
+            <div class="perf-card perf-fastest">
+                <div class="perf-icon">⚡</div>
+                <div class="perf-header">
+                    <h4>Nhanh nhất</h4>
+                    <span class="perf-code">${fastest.testcase_code || 'N/A'}</span>
                 </div>
-                <p class="suggestion-desc">${s.description}</p>
-                ${s.affected_testcases && s.affected_testcases.length > 0
-                ? `<div class="suggestion-affected">
-                        Ảnh hưởng: ${s.affected_testcases.join(', ')}
-                    </div>`
-                : ''}
+                <div class="perf-time">${fastest.time_ms || 0}ms</div>
+                <div class="perf-eval">${fastest.evaluation || 'N/A'}</div>
+                <div class="perf-reason">${fastest.reason || ''}</div>
             </div>
-        `).join('')
+            
+            <div class="perf-card perf-slowest">
+                <div class="perf-icon">🐌</div>
+                <div class="perf-header">
+                    <h4>Chậm nhất</h4>
+                    <span class="perf-code">${slowest.testcase_code || 'N/A'}</span>
+                </div>
+                <div class="perf-time">${slowest.time_ms || 0}ms</div>
+                <div class="perf-eval">${slowest.evaluation || 'N/A'}</div>
+                <div class="perf-reason">${slowest.reason || ''}</div>
+            </div>
+        </div>
+        <div class="perf-overall">
+            <strong>Đánh giá chung:</strong> ${perfAnalysis.overall_speed || 'N/A'}
+        </div>
+    `;
+
+    // Render Content Analysis
+    const contentAnalysis = analysis.content_analysis || {};
+    const bestResponse = contentAnalysis.best_response || {};
+    const weakestResponse = contentAnalysis.weakest_response || {};
+
+    const contentHtml = `
+        <div class="content-comparison">
+            <div class="content-card content-best">
+                <div class="content-header">
+                    <span class="content-icon">🏆</span>
+                    <h4>Câu trả lời tốt nhất</h4>
+                    <span class="content-code">${bestResponse.testcase_code || 'N/A'}</span>
+                </div>
+                <div class="content-reason">${bestResponse.reason || ''}</div>
+                ${bestResponse.strengths && bestResponse.strengths.length > 0 ? `
+                    <div class="content-strengths">
+                        <strong>Điểm mạnh:</strong>
+                        <ul>
+                            ${bestResponse.strengths.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="content-card content-weakest">
+                <div class="content-header">
+                    <span class="content-icon">⚠️</span>
+                    <h4>Câu trả lời yếu nhất</h4>
+                    <span class="content-code">${weakestResponse.testcase_code || 'N/A'}</span>
+                </div>
+                <div class="content-reason">${weakestResponse.reason || ''}</div>
+                ${weakestResponse.weaknesses && weakestResponse.weaknesses.length > 0 ? `
+                    <div class="content-weaknesses">
+                        <strong>Điểm yếu:</strong>
+                        <ul>
+                            ${weakestResponse.weaknesses.map(w => `<li>${w}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                ${weakestResponse.missing_info && weakestResponse.missing_info.length > 0 ? `
+                    <div class="content-missing">
+                        <strong>Thông tin còn thiếu cần bổ sung:</strong>
+                        <ul>
+                            ${weakestResponse.missing_info.map(m => `<li>${m}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+        ${contentAnalysis.similarity_note ? `
+            <div class="content-similarity-note">
+                <strong>Độ tương đồng:</strong> ${contentAnalysis.similarity_note}
+            </div>
+        ` : ''}
+    `;
+
+    // Render Ranking
+    const ranking = analysis.ranking || [];
+    const rankingHtml = ranking.length > 0
+        ? `
+            <div class="ranking-list">
+                ${ranking.map(r => `
+                    <div class="ranking-item">
+                        <div class="ranking-badge rank-${r.rank}">#${r.rank}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-code">${r.testcase_code}</div>
+                            <div class="ranking-reason">${r.reason}</div>
+                        </div>
+                        <div class="ranking-score">${r.score}/10</div>
+                    </div>
+                `).join('')}
+            </div>
+        `
+        : '<p class="empty-state">Không có xếp hạng</p>';
+
+    // Render Recommendations
+    const recommendations = analysis.recommendations || [];
+    const recommendationsHtml = recommendations.length > 0
+        ? `
+            <div class="recommendations-list">
+                ${recommendations.map(rec => `
+                    <div class="recommendation-card priority-${rec.priority.toLowerCase()}">
+                        <div class="rec-header">
+                            <span class="rec-priority">${rec.priority}</span>
+                            <span class="rec-category">${rec.category}</span>
+                            <span class="rec-target">${rec.target}</span>
+                        </div>
+                        <h4 class="rec-title">${rec.title}</h4>
+                        <p class="rec-description">${rec.description}</p>
+                        ${rec.specific_actions && rec.specific_actions.length > 0 ? `
+                            <div class="rec-actions">
+                                <strong>Hành động cụ thể:</strong>
+                                <ul>
+                                    ${rec.specific_actions.map(a => `<li>${a}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        <div class="rec-improvement">
+                            <strong>Kết quả mong đợi:</strong> ${rec.expected_improvement}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `
         : '<p class="empty-state">Không có đề xuất</p>';
 
     return `
@@ -359,34 +468,23 @@ function renderLLMAnalysis(result, testcases) {
             </div>
 
             <div class="analysis-section">
-                <h3>📊 Patterns phát hiện</h3>
-                <div class="insights-list">
-                    ${patternsHtml}
-                </div>
+                <h3>⚡ Phân tích Performance</h3>
+                ${performanceHtml}
             </div>
 
             <div class="analysis-section">
-                <h3>⚠️ Outliers</h3>
-                <div class="insights-list">
-                    ${outliersHtml}
-                </div>
+                <h3>📝 Phân tích Nội dung</h3>
+                ${contentHtml}
+            </div>
+
+            <div class="analysis-section">
+                <h3>🏅 Xếp hạng Testcases</h3>
+                ${rankingHtml}
             </div>
 
             <div class="analysis-section">
                 <h3>💡 Đề xuất cải thiện</h3>
-                <div class="suggestions-list">
-                    ${suggestionsHtml}
-                </div>
-            </div>
-
-            <div class="analysis-section">
-                <h3>⏱️ Phân tích thời gian</h3>
-                <p class="analysis-text">${analysis.time_analysis || 'Không có phân tích'}</p>
-            </div>
-
-            <div class="analysis-section">
-                <h3>✅ Phân tích chất lượng</h3>
-                <p class="analysis-text">${analysis.quality_analysis || 'Không có phân tích'}</p>
+                ${recommendationsHtml}
             </div>
 
             <div class="analysis-section conclusion">
@@ -397,16 +495,7 @@ function renderLLMAnalysis(result, testcases) {
     `;
 }
 
-function getSeverityIcon(severity) {
-    const icons = {
-        'Critical': '🔴',
-        'Major': '🟠',
-        'Minor': '🟡',
-        'Warning': '⚠️',
-        'Info': 'ℹ️'
-    };
-    return icons[severity] || 'ℹ️';
-}
+
 
 function updateMetricsWithSimilarity(similarityMatrix, testcases) {
     const metricsContent = document.querySelector('[data-content="metrics"]');

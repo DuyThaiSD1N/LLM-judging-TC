@@ -7,6 +7,15 @@ export function initHistory() {
     const btnOpen = document.getElementById('btn-history');
     const btnClose = document.getElementById('btn-close-history');
 
+    if (!modal || !btnOpen || !btnClose) {
+        console.error('❌ History elements not found:', {
+            modal: !!modal,
+            btnOpen: !!btnOpen,
+            btnClose: !!btnClose
+        });
+        return;
+    }
+
     btnOpen.addEventListener('click', () => {
         openHistoryModal();
     });
@@ -21,6 +30,8 @@ export function initHistory() {
             modal.classList.remove('show');
         }
     });
+
+    console.log('✅ History initialized');
 }
 
 async function openHistoryModal() {
@@ -94,13 +105,15 @@ async function loadHistory() {
         listContainer.innerHTML = grouped.map((run, index) => `
             <div class="history-item" data-run-index="${index}">
                 <div class="history-header">
+                    <button class="history-expand-btn" data-run-index="${index}">
+                        <span class="expand-icon">▶</span>
+                    </button>
                     <div class="history-title">
                         ${run.testcase_name} <span style="color:#94a3b8;font-weight:400;">(${run.testcase_code})</span>
                     </div>
                     <div class="history-time">${formatDate(run.run_at)}</div>
                 </div>
                 <div class="history-meta">
-                    <span>Nhóm: <strong>${run.group_type}</strong></span>
                     <span>Lượt: <strong>${run.turns}</strong></span>
                     <span style="color:#16a34a;">✓ Đạt: <strong>${run.passed}</strong></span>
                     <span style="color:#dc2626;">✕ Không đạt: <strong>${run.failed}</strong></span>
@@ -150,10 +163,22 @@ async function loadHistory() {
             </div>
         `).join('');
 
-        // Add click handlers
-        document.querySelectorAll('.history-item').forEach(item => {
-            item.addEventListener('click', () => {
+        // Add click handlers for expand buttons only
+        document.querySelectorAll('.history-expand-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                const index = btn.dataset.runIndex;
+                const item = document.querySelector(`.history-item[data-run-index="${index}"]`);
+                const icon = btn.querySelector('.expand-icon');
+
                 item.classList.toggle('expanded');
+
+                // Rotate icon
+                if (item.classList.contains('expanded')) {
+                    icon.style.transform = 'rotate(90deg)';
+                } else {
+                    icon.style.transform = 'rotate(0deg)';
+                }
             });
         });
     } catch (err) {
@@ -174,7 +199,6 @@ function groupHistoryByRun(history) {
                 testcase_id: item.testcase_id,
                 testcase_code: item.testcase_code,
                 testcase_name: item.testcase_name,
-                group_type: item.group_type,
                 run_at: item.run_at,
                 turns: 0,
                 passed: 0,

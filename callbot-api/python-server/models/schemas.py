@@ -14,13 +14,15 @@ class Turn(BaseModel):
     """Một lượt hội thoại trong testcase"""
     question: str
     expected: str
+    required_keywords: Optional[str] = None  # Từ khóa bắt buộc (optional)
+    forbidden_keywords: Optional[str] = None  # Từ khóa cấm (optional)
 
 
 class TestcaseBase(BaseModel):
-    """Base schema cho testcase"""
+    """Base schema cho testcase (SIMPLIFIED - group is optional)"""
     code: str
     name: str
-    group: Literal["A", "B", "C", "D"]
+    group: str = "GENERAL"  # Simplified: no longer restricted to A/B/C/D
     turns: List[Turn]
     criteria: str = "standard"
     bot_url: Optional[str] = None  # URL bot riêng cho testcase này
@@ -148,9 +150,9 @@ class TurnResult(BaseModel):
 # ============================================================================
 
 class RunSingleRequest(BaseModel):
-    """Request cho chạy single testcase"""
+    """Request cho chạy single testcase (SIMPLIFIED)"""
     code: str
-    group: Literal["A", "B", "C", "D"] = "A"
+    group: str = "GENERAL"  # Simplified: no longer restricted
     turns: Optional[List[Turn]] = None
     question: Optional[str] = None
     expected: Optional[str] = None

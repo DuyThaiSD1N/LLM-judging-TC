@@ -11,7 +11,7 @@ from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langsmith import traceable
 
-from prompts.prompt_factory import create_judge_prompt
+from prompts.simple_prompt import create_simple_judge_prompt
 
 
 # Time thresholds
@@ -28,6 +28,86 @@ def classify_time(ms: int) -> Dict[str, str]:
     if ms <= TIME_THRESHOLD["OK"]:
         return {"label": "Chấp nhận được", "level": "ok"}
     return {"label": "Chậm", "level": "slow"}
+
+
+def _clean_forbidden_words(text: str) -> str:
+    """
+    Xóa các từ cấm khỏi LLM output (error_desc, suggestion, etc.)
+    Đặc biệt xử lý: "Failed: X" → "X"
+    """
+    if not isinstance(text, str) or not text:
+        return text
+    
+    original = text
+    
+    # STEP 1: Xử lý "Failed: X" / "FAILED: X" ở đầu câu → chỉ giữ lại X
+    text = re.sub(r'\b(?:Failed|FAILED|Fail|FAIL):\s*', '', text, flags=re.IGNORECASE)
+    
+    # STEP 2: Xóa "Verdict:" patterns
+    text = re.sub(r'Verdict:\s*[^\n]*', '', text, flags=re.IGNORECASE)
+    
+    # STEP 3: Thay thế standalone "FAILED" / "PASSED"
+    text = re.sub(r'\b(?:FAILED|Fail|failed|FAIL)\b', 'chưa đáp ứng', text, flags=re.IGNORECASE)
+    text = re.sub(r'\b(?:PASSED|Pass|passed|PASS)\b', 'đã đáp ứng', text, flags=re.IGNORECASE)
+    
+    # Clean up
+    text = text.strip()
+    
+    if text != original:
+        print(f"🧹 Cleaned judge output: '{original[:60]}...' → '{text[:60]}...'")
+    
+    return text
+
+
+def _clean_tone_note(text: str) -> str:
+    """
+    Xóa các nhận xét TÍCH CỰC khỏi tone_note
+    CHỈ giữ lại những gì CẦN CẢI THIỆN
+    """
+    if not isinstance(text, str) or not text:
+        return text
+    
+    original = text
+    
+    # Danh sách các cụm từ tích cực cần xóa
+    positive_patterns = [
+        r'giọng điệu\s+(?:rất\s+)?lịch sự',
+        r'(?:rất\s+)?lịch sự',
+        r'có\s+xưng\s+hô',
+        r'xưng\s+hô\s+(?:đầy\s+đủ|phù\s+hợp|tốt)',
+        r'có\s+(?:dạ|ạ)',
+        r'(?:dạ|ạ)\s+đầy\s+đủ',
+        r'thân\s+thiện',
+        r'tôn\s+trọng',
+        r'chuyên\s+nghiệp',
+        r'giọng\s+điệu\s+tốt',
+        r'phù\s+hợp',
+        r'hợp\s+lý',
+    ]
+    
+    # Xóa các pattern tích cực
+    for pattern in positive_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    # Xóa các câu chỉ chứa khen ngợi
+    # VD: "Giọng điệu lịch sự và có xưng hô." → ""
+    if re.match(r'^[\s,\.;và]+$', text):
+        text = ""
+    
+    # Clean up: xóa dấu phẩy, chấm, "và" thừa
+    text = re.sub(r'^[\s,\.;và]+', '', text)
+    text = re.sub(r'[\s,\.;và]+$', '', text)
+    text = re.sub(r'\s+', ' ', text)
+    text = text.strip()
+    
+    # Nếu sau khi xóa chỉ còn dấu câu hoặc rỗng → trả về rỗng
+    if not text or re.match(r'^[\s,\.;]+$', text):
+        text = ""
+    
+    if text != original and original:
+        print(f"🧹 Cleaned tone_note: '{original[:60]}...' → '{text[:60] if text else '(empty)'}...'")
+    
+    return text
 
 
 def _safe_parse_json(raw: str) -> Dict[str, Any]:
@@ -79,20 +159,22 @@ class JudgeAgent:
         question: str,
         expected: str,
         actual: str,
-        group: str,
         response_time_ms: int,
-        criteria: str = "standard"
+        criteria: str = "standard",
+        required_keywords: str = None,
+        forbidden_keywords: str = None
     ) -> Dict[str, Any]:
         """
-        Đánh giá một câu trả lời
+        Đánh giá một câu trả lời (SIMPLIFIED - No group logic)
         
         Args:
             question: Câu hỏi
             expected: Câu trả lời kỳ vọng
             actual: Câu trả lời thực tế
-            group: Nhóm testcase (A/B/C/D)
             response_time_ms: Thời gian phản hồi (ms)
-            criteria: Tiêu chí đánh giá
+            criteria: Tiêu chí đánh giá (giữ lại để tương thích, nhưng không dùng)
+            required_keywords: Từ khóa bắt buộc (optional)
+            forbidden_keywords: Từ khóa cấm (optional)
             
         Returns:
             Dict với kết quả đánh giá
@@ -101,14 +183,15 @@ class JudgeAgent:
         time_info = classify_time(response_time_ms)
         time_label = f"{response_time_ms}ms ({time_info['label']})"
         
-        # Create prompt
-        prompt = create_judge_prompt(
-            criteria=criteria,
+        # Create simple prompt with criteria
+        prompt_text = create_simple_judge_prompt(
             question=question,
             expected=expected,
             actual=actual,
-            group=group,
-            time_label=time_label
+            time_label=time_label,
+            criteria=criteria,  # Pass criteria to prompt
+            required_keywords=required_keywords,
+            forbidden_keywords=forbidden_keywords
         )
         
         # Retry logic với exponential backoff
@@ -117,12 +200,13 @@ class JudgeAgent:
         
         for attempt in range(max_retries):
             try:
-                # Invoke LLM — nhận raw string, tự parse để kiểm soát lỗi
-                chain = prompt | self.llm
-                ai_message = await chain.ainvoke({})
+                # Invoke LLM
+                from langchain_core.messages import HumanMessage
+                
+                ai_message = await self.llm.ainvoke([HumanMessage(content=prompt_text)])
                 raw_content = ai_message.content
 
-                # Parse JSON an toàn, tự sửa lỗi nhỏ
+                # Parse JSON an toàn
                 result = _safe_parse_json(raw_content)
                 
                 # Get verdict from LLM
@@ -132,6 +216,11 @@ class JudgeAgent:
                 error_desc = result.get("error_desc", "")
                 suggestion = result.get("suggestion", "")
                 suggested_response = result.get("suggested_response", "")
+                
+                # CLEAN forbidden words from all text fields
+                error_desc = _clean_forbidden_words(error_desc)
+                suggestion = _clean_forbidden_words(suggestion)
+                suggested_response = _clean_forbidden_words(suggested_response)
                 
                 if verdict == "PASSED":
                     # PASSED phải rỗng error fields
@@ -150,9 +239,11 @@ class JudgeAgent:
                                 f"[{e.get('severity','?')}] {e.get('description','')}"
                                 for e in errors if e.get("description")
                             )
+                            error_desc = _clean_forbidden_words(error_desc)
                         elif reasoning:
                             # Lấy phần kết luận từ reasoning
                             error_desc = reasoning.split("[CoT-6]")[-1].strip() if "[CoT-6]" in reasoning else reasoning[-300:]
+                            error_desc = _clean_forbidden_words(error_desc)
                         else:
                             error_desc = "LLM không cung cấp lý do — cần human review"
 
@@ -165,9 +256,13 @@ class JudgeAgent:
                 if confidence_level is not None and confidence_level < 0.7:
                     needs_human_review = True
                 
+                # Clean tone_note - chỉ giữ lại vấn đề, xóa khen ngợi
+                tone_note = result.get("tone_note", "")
+                tone_note = _clean_tone_note(tone_note)
+                
                 # Logging for monitoring
                 print(
-                    f"📊 Judge Result [{criteria}]: verdict={verdict}, "
+                    f"📊 Judge Result [{criteria}]: result={verdict}, "
                     f"confidence={confidence_level}, "
                     f"needs_review={needs_human_review}"
                 )
@@ -191,7 +286,7 @@ class JudgeAgent:
                     "suggested_response": suggested_response,
 
                     # Notes
-                    "tone_note": result.get("tone_note", ""),
+                    "tone_note": tone_note,
                     "time_verdict": result.get("time_verdict", time_info["level"]),
                     "time_note": result.get("time_note", time_label),
                 }

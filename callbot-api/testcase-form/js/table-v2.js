@@ -1,7 +1,11 @@
 // table.js — quản lý state testcases (multi-turn) và render bảng đánh giá
+// VERSION: 2024-05-06-v7 - FIXED reasoning object handling - CACHE BUSTED
 
-import { filterTestcases } from './filter.js';
+import { filterTestcases } from './filter-v2.js';
 import { getIsRunning } from './state.js';
+
+console.log('✅ table.js loaded - VERSION 2024-05-06-v7 (FIXED reasoning object)');
+console.log('🔍 Action buttons: ▶ Run, ✏️ Edit, 🗑 Delete ONLY');
 
 let testcases = [];
 let _runSingleFn = null;
@@ -67,60 +71,6 @@ function editTestcase(idx) {
   }));
 }
 
-function duplicateTestcase(idx) {
-  const tc = testcases[idx];
-  if (!tc) return;
-
-  // Tạo bản sao với mã mới
-  const newCode = generateDuplicateCode(tc.code);
-  const duplicated = {
-    code: newCode,
-    name: tc.name + ' (copy)',
-    group: tc.group,
-    criteria: tc.criteria,
-    bot_url: tc.bot_url,  // Copy bot_url
-    turns: tc.turns.map(t => ({
-      question: t.question,
-      expected: t.expected
-    }))
-  };
-
-  testcases.push(initRow(duplicated));
-  renderEval();
-
-  // Scroll to bottom
-  setTimeout(() => {
-    const table = document.querySelector('.table-wrap');
-    if (table) table.scrollTop = table.scrollHeight;
-  }, 100);
-}
-
-function generateDuplicateCode(originalCode) {
-  // Tìm số lớn nhất trong các mã hiện có
-  const codePattern = /^(.+?)(\d+)$/;
-  const match = originalCode.match(codePattern);
-
-  if (!match) {
-    // Nếu không có số, thêm -1
-    return originalCode + '-1';
-  }
-
-  const prefix = match[1];
-  const num = parseInt(match[2]);
-
-  // Tìm số lớn nhất với cùng prefix
-  let maxNum = num;
-  testcases.forEach(tc => {
-    const tcMatch = tc.code.match(codePattern);
-    if (tcMatch && tcMatch[1] === prefix) {
-      const tcNum = parseInt(tcMatch[2]);
-      if (tcNum > maxNum) maxNum = tcNum;
-    }
-  });
-
-  return prefix + (maxNum + 1);
-}
-
 export function setTurnResult(tcIdx, turnIdx, fields) {
   const tc = testcases[tcIdx];
   if (!tc || !tc.turns[turnIdx]) return;
@@ -134,13 +84,15 @@ export function setTcStatus(tcIdx, status, error = '') {
   testcases[tcIdx].error = error;
 }
 
-// Reset turn data về trạng thái ban đầu (giữ question/expected, xóa kết quả cũ)
+// Reset turn data về trạng thái ban đầu (giữ question/expected/keywords, xóa kết quả cũ)
 export function resetTurnData(tcIdx) {
   const tc = testcases[tcIdx];
   if (!tc) return;
   tc.turns = tc.turns.map(t => ({
     question: t.question,
     expected: t.expected,
+    required_keywords: t.required_keywords || null,  // Preserve keywords
+    forbidden_keywords: t.forbidden_keywords || null,  // Preserve keywords
     actual: null,
     action: '',
     response_time_ms: null,
@@ -176,6 +128,8 @@ function initRow(tc) {
     turns: turns.map(t => ({
       question: t.question,
       expected: t.expected,
+      required_keywords: t.required_keywords || null,  // Preserve keywords
+      forbidden_keywords: t.forbidden_keywords || null,  // Preserve keywords
       actual: null,
       action: '',
       response_time_ms: null,
@@ -256,7 +210,6 @@ export function renderEval() {
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
         <td class="col-name" rowspan="${turnCount}">${tc.name}</td>
-        <td rowspan="${turnCount}"><span class="tag tag-${tc.group}">${tc.group}</span></td>
         <td class="col-criteria" rowspan="${turnCount}"><span class="criteria-badge">${criteriaDisplay}</span></td>
         <td class="col-bot-url" rowspan="${turnCount}">${tc.bot_url
           ? `<span class="bot-url-text" title="${tc.bot_url}">${tc.bot_url}</span>`
@@ -267,7 +220,6 @@ export function renderEval() {
         <td class="col-actions" rowspan="${turnCount}">
           <button class="btn-run-one" data-idx="${i}" title="Chạy testcase này">▶</button>
           <button class="btn-edit"    data-idx="${i}" title="Sửa">✏️</button>
-          <button class="btn-duplicate" data-idx="${i}" title="Nhân bản">📋</button>
           <button class="btn-del"     data-idx="${i}" title="Xóa">🗑</button>
         </td>` : '';
 
@@ -278,6 +230,8 @@ export function renderEval() {
           <td class="col-turn-num">Lượt ${j + 1}</td>
           <td class="col-q">${turn.question}</td>
           <td class="col-e">${turn.expected}</td>
+          <td class="col-keywords">${turn.required_keywords || '<span class="cell-empty">—</span>'}</td>
+          <td class="col-keywords">${turn.forbidden_keywords || '<span class="cell-empty">—</span>'}</td>
           <td class="col-actual">${renderActual(turn, tc.status)}</td>
           <td class="col-time">${renderTime(turn, tc.status)}</td>
           <td class="col-verdict">${renderVerdict(turn, tc.status)}</td>
@@ -299,12 +253,13 @@ export function renderEval() {
             <th>#</th>
             <th>Mã TC</th>
             <th>Tên Testcase</th>
-            <th>Nhóm</th>
             <th>LLM Judge</th>
             <th>Bot URL</th>
             <th>Lượt</th>
             <th>Câu hỏi từ User</th>
             <th>Câu trả lời kỳ vọng</th>
+            <th>Từ khóa bắt buộc</th>
+            <th>Từ khóa cấm</th>
             <th>Câu trả lời thực tế</th>
             <th>Thời gian</th>
             <th>Kết quả</th>
@@ -327,13 +282,10 @@ export function renderEval() {
   container.querySelectorAll('.btn-edit').forEach(btn =>
     btn.addEventListener('click', () => editTestcase(Number(btn.dataset.idx))));
 
-  container.querySelectorAll('.btn-duplicate').forEach(btn =>
-    btn.addEventListener('click', () => duplicateTestcase(Number(btn.dataset.idx))));
-
   // Disable buttons if running
   const running = getIsRunning();
   if (running) {
-    container.querySelectorAll('.btn-edit, .btn-del, .btn-run-one, .btn-duplicate').forEach(el => {
+    container.querySelectorAll('.btn-edit, .btn-del, .btn-run-one').forEach(el => {
       el.disabled = true;
       el.style.opacity = '0.5';
       el.style.cursor = 'not-allowed';
@@ -461,8 +413,8 @@ function renderVerdict(turn, tcStatus) {
   if (!turn.verdict) return '<span class="verdict-fail">✕ Lỗi đánh giá</span>';
 
   return turn.verdict === 'PASSED'
-    ? '<span class="verdict-pass">✓ PASSED</span>'
-    : '<span class="verdict-fail">✕ FAILED</span>';
+    ? '<span class="verdict-pass">✓ Đạt yêu cầu</span>'
+    : '<span class="verdict-fail">⚠ Cần cải thiện</span>';
 }
 
 function renderErrorDesc(turn, tcStatus) {
@@ -475,8 +427,14 @@ function renderErrorDesc(turn, tcStatus) {
   if (!desc) return '<span class="cell-empty">—</span>';
 
   // Thêm reasoning tooltip nếu có
-  const reasoningAttr = turn.reasoning
-    ? `title="${turn.reasoning.replace(/"/g, '&quot;').replace(/\n/g, ' ')}"` : '';
+  let reasoningAttr = '';
+  if (turn.reasoning) {
+    // Reasoning có thể là string hoặc object
+    const reasoningText = typeof turn.reasoning === 'string'
+      ? turn.reasoning
+      : JSON.stringify(turn.reasoning, null, 2);
+    reasoningAttr = `title="${reasoningText.replace(/"/g, '&quot;').replace(/\n/g, ' ')}"`;
+  }
 
   return `<div class="judge-text err-text" ${reasoningAttr}>${desc}</div>`;
 }

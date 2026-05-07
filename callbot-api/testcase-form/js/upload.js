@@ -1,6 +1,6 @@
 // upload.js — upload Excel, tự động phân tích bằng AI ngay khi chọn file
 
-import { addBulkTestcases } from './table.js';
+import { addBulkTestcases } from './table-v2.js';
 import { showToast } from './toast.js';
 import { API_ENDPOINTS, API_KEY } from './config.js';
 

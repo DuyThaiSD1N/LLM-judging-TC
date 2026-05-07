@@ -1,20 +1,30 @@
-// filter.js — filter và search testcase
+// filter.js — filter và search testcase (SIMPLIFIED - No group filter)
+// VERSION: 2024-05-07-v16 - FIXED clearBtn check removed - NO CACHE
 
-import { renderEval } from './table.js';
+import { renderEval } from './table-v2.js';
 
 let currentFilters = {
     search: '',
-    group: 'all',
     criteria: 'all',
     status: 'all'
 };
 
 export function initFilter() {
     const searchInput = document.getElementById('search-input');
-    const groupFilter = document.getElementById('filter-group');
     const criteriaFilter = document.getElementById('filter-criteria');
     const statusFilter = document.getElementById('filter-status');
-    const clearBtn = document.getElementById('btn-clear-filter');
+
+    // Null check - CRITICAL: Prevent error if elements not found
+    if (!searchInput || !criteriaFilter || !statusFilter) {
+        console.error('❌ Filter elements not found:', {
+            searchInput: !!searchInput,
+            criteriaFilter: !!criteriaFilter,
+            statusFilter: !!statusFilter
+        });
+        return;
+    }
+
+    console.log('✅ Filter initialized successfully');
 
     // Search input với debounce
     let searchTimeout;
@@ -27,11 +37,6 @@ export function initFilter() {
     });
 
     // Filter dropdowns
-    groupFilter.addEventListener('change', (e) => {
-        currentFilters.group = e.target.value;
-        applyFilters();
-    });
-
     criteriaFilter.addEventListener('change', (e) => {
         currentFilters.criteria = e.target.value;
         applyFilters();
@@ -39,16 +44,6 @@ export function initFilter() {
 
     statusFilter.addEventListener('change', (e) => {
         currentFilters.status = e.target.value;
-        applyFilters();
-    });
-
-    // Clear filters
-    clearBtn.addEventListener('click', () => {
-        searchInput.value = '';
-        groupFilter.value = 'all';
-        criteriaFilter.value = 'all';
-        statusFilter.value = 'all';
-        currentFilters = { search: '', group: 'all', criteria: 'all', status: 'all' };
         applyFilters();
     });
 }
@@ -65,11 +60,6 @@ export function filterTestcases(testcases) {
             const matchCode = tc.code.toLowerCase().includes(searchLower);
             const matchName = tc.name.toLowerCase().includes(searchLower);
             if (!matchCode && !matchName) return false;
-        }
-
-        // Group filter
-        if (currentFilters.group !== 'all' && tc.group !== currentFilters.group) {
-            return false;
         }
 
         // Criteria filter
@@ -100,17 +90,4 @@ export function filterTestcases(testcases) {
 
 function applyFilters() {
     renderEval();
-    updateFilterBadge();
-}
-
-function updateFilterBadge() {
-    const badge = document.getElementById('filter-badge');
-    const activeCount = Object.values(currentFilters).filter(v => v && v !== 'all').length;
-
-    if (activeCount > 0) {
-        badge.textContent = activeCount;
-        badge.style.display = 'inline-block';
-    } else {
-        badge.style.display = 'none';
-    }
 }

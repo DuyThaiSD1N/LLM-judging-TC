@@ -1,17 +1,26 @@
 // runner.js — chạy multi-turn testcase + nhận kết quả LLM judge
 
-import { getTestcases, setTurnResult, setTcStatus, resetTurnData, renderEval } from './table.js';
+import { getTestcases, setTurnResult, setTcStatus, resetTurnData, renderEval } from './table-v2.js';
 import { showToast } from './toast.js';
 import { API_ENDPOINTS, getAuthHeaders } from './config.js';
 import { setRunning, getIsRunning } from './state.js';
 
 export function initRunner() {
-    document.getElementById('btn-run-all').addEventListener('click', runAll);
+    const btnRunAll = document.getElementById('btn-run-all');
+
+    if (!btnRunAll) {
+        console.error('❌ Run button not found');
+        return;
+    }
+
+    btnRunAll.addEventListener('click', runAll);
 
     // Listen for bulk run event
     window.addEventListener('bulk-run', (e) => {
         runBulk(e.detail.indices);
     });
+
+    console.log('✅ Runner initialized');
 }
 
 // Export để các module khác có thể check trạng thái
@@ -177,7 +186,7 @@ async function runAll() {
         const allTurns = testcases.flatMap((tc, i) => tc.turns);
         const passed = allTurns.filter(t => t.verdict === 'PASSED').length;
         const judged = allTurns.filter(t => t.verdict !== null).length;
-        showToast(`✅ Xong! ${passed}/${judged} lượt PASSED`);
+        showToast(`✅ Xong! ${passed}/${judged} lượt đạt yêu cầu`);
 
     } catch (err) {
         testcases.forEach((_, i) => setTcStatus(i, 'error', err.message));
@@ -224,7 +233,7 @@ export async function runSingle(idx) {
 
         const passed = data.turns.filter(t => t.verdict === 'PASSED').length;
         const judged = data.turns.filter(t => t.verdict !== null).length;
-        showToast(`✅ TC ${tc.code}: ${passed}/${judged} lượt PASSED`);
+        showToast(`✅ TC ${tc.code}: ${passed}/${judged} lượt đạt yêu cầu`);
     } catch (err) {
         setTcStatus(idx, 'error', err.message);
         renderEval();
@@ -277,7 +286,7 @@ async function runBulk(indices) {
         const allTurns = data.results.flatMap(r => r.turns ?? []);
         const passed = allTurns.filter(t => t.verdict === 'PASSED').length;
         const judged = allTurns.filter(t => t.verdict !== null).length;
-        showToast(`✅ Xong! ${passed}/${judged} lượt PASSED (${selectedTcs.length} testcase)`);
+        showToast(`✅ Xong! ${passed}/${judged} lượt đạt yêu cầu (${selectedTcs.length} testcase)`);
     } catch (err) {
         indices.forEach(i => setTcStatus(i, 'error', err.message));
         renderEval();

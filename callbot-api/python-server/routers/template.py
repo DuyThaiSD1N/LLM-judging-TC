@@ -28,9 +28,10 @@ async def get_template():
     headers = [
         "Tên Testcase",
         "Mã Testcase",
-        "Nhóm (A/B/C/D)",
         "Câu hỏi từ User",
         "Câu trả lời kỳ vọng",
+        "Từ khóa BẮT BUỘC (tùy chọn)",
+        "Từ khóa CẤM (tùy chọn)",
         "LLM Judge (standard/strict/speed-focused/content-only/ux-focused)",
         "Bot URL (tùy chọn)"
     ]
@@ -40,16 +41,17 @@ async def get_template():
     sample = [
         "Hỏi thủ tục đăng ký kết hôn",
         "TC-001",
-        "A",
         "đăng ký kết hôn cần giấy tờ gì",
         "Cần CMND/CCCD và giấy xác nhận tình trạng hôn nhân, nộp tại UBND cấp xã",
+        "CMND, giấy xác nhận",  # Từ khóa bắt buộc
+        "không rõ, không biết",  # Từ khóa cấm
         "standard",
         ""  # Bot URL để trống = dùng mặc định
     ]
     ws.append(sample)
     
     # Column widths
-    column_widths = [35, 12, 16, 45, 60, 50, 40]
+    column_widths = [35, 12, 45, 60, 30, 30, 50, 40]
     for idx, width in enumerate(column_widths, 1):
         ws.column_dimensions[chr(64 + idx)].width = width
     

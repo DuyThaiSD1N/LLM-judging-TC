@@ -12,10 +12,10 @@ class Testcase:
     @staticmethod
     def create(testcase: Dict[str, Any]) -> int:
         """
-        Lưu testcase mới
+        Lưu testcase mới HOẶC thêm turns vào testcase đã tồn tại
         
         Args:
-            testcase: Dict với keys: code, name, group, turns
+            testcase: Dict với keys: code, name, group, turns, bot_url (optional)
             
         Returns:
             testcase_id
@@ -23,26 +23,59 @@ class Testcase:
         conn = get_db()
         cursor = conn.cursor()
         
-        # Insert testcase
+        # Kiểm tra xem testcase đã tồn tại chưa
         cursor.execute(
-            """
-            INSERT INTO testcases (code, name, group_type)
-            VALUES (?, ?, ?)
-            """,
-            (testcase["code"], testcase["name"], testcase["group"])
+            "SELECT id FROM testcases WHERE code = ?",
+            (testcase["code"],)
         )
+        existing = cursor.fetchone()
         
-        testcase_id = cursor.lastrowid
-        
-        # Insert turns
-        for idx, turn in enumerate(testcase["turns"]):
+        if existing:
+            # Testcase đã tồn tại → Thêm turns mới vào (conversation mode)
+            testcase_id = existing["id"]
+            
+            # Lấy turn_number cao nhất hiện tại
+            cursor.execute(
+                "SELECT MAX(turn_number) as max_turn FROM turns WHERE testcase_id = ?",
+                (testcase_id,)
+            )
+            max_turn_result = cursor.fetchone()
+            next_turn_number = (max_turn_result["max_turn"] or 0) + 1
+            
+            # Thêm turns mới
+            for idx, turn in enumerate(testcase["turns"]):
+                cursor.execute(
+                    """
+                    INSERT INTO turns (testcase_id, turn_number, question, expected)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (testcase_id, next_turn_number + idx, turn["question"], turn["expected"])
+                )
+            
+            print(f"✅ Added {len(testcase['turns'])} new turn(s) to existing testcase {testcase['code']}")
+        else:
+            # Testcase mới → Tạo mới
             cursor.execute(
                 """
-                INSERT INTO turns (testcase_id, turn_number, question, expected)
+                INSERT INTO testcases (code, name, group_type, bot_url)
                 VALUES (?, ?, ?, ?)
                 """,
-                (testcase_id, idx + 1, turn["question"], turn["expected"])
+                (testcase["code"], testcase["name"], testcase["group"], testcase.get("bot_url"))
             )
+            
+            testcase_id = cursor.lastrowid
+            
+            # Insert turns
+            for idx, turn in enumerate(testcase["turns"]):
+                cursor.execute(
+                    """
+                    INSERT INTO turns (testcase_id, turn_number, question, expected)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (testcase_id, idx + 1, turn["question"], turn["expected"])
+                )
+            
+            print(f"✅ Created new testcase {testcase['code']} with {len(testcase['turns'])} turn(s)")
         
         conn.commit()
         conn.close()

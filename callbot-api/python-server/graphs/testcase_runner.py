@@ -203,14 +203,20 @@ async def judge_turn_node(state: TestcaseState) -> TestcaseState:
         }
     
     try:
-        # Judge with LLM
+        # Get keywords from turn (if available)
+        turn_data = state["turns"][turn_index]
+        required_keywords = turn_data.get("required_keywords")
+        forbidden_keywords = turn_data.get("forbidden_keywords")
+        
+        # Judge with LLM (SIMPLIFIED - no group)
         judge_result = await judge_agent.judge_one(
             question=turn_result["question"],
             expected=turn_result["expected"],
             actual=turn_result["actual"],
-            group=state["group"],
             response_time_ms=turn_result["response_time_ms"],
-            criteria=state["criteria"]
+            criteria=state["criteria"],
+            required_keywords=required_keywords,
+            forbidden_keywords=forbidden_keywords
         )
         
         # Update turn result with judge result
@@ -327,17 +333,23 @@ async def run_testcase(
 ) -> Dict[str, Any]:
     """
     Chạy một testcase với LangGraph
+    
+    CONVERSATION MODE:
+    - Sử dụng `code` làm `conversation_id` để test memory của bot
+    - Tất cả turns trong cùng testcase sẽ dùng chung conversation_id
+    - Bot sẽ nhớ context từ các turn trước đó
 
     Args:
-        code: Mã testcase
+        code: Mã testcase (cũng là conversation_id)
         name: Tên testcase
         group: Nhóm (A/B/C/D)
-        turns: Danh sách turns
+        turns: Danh sách turns (sẽ được gửi tuần tự trong cùng conversation)
         criteria: Tiêu chí đánh giá
         bot_url: URL bot tùy chỉnh (None = dùng default)
     """
     resolved_url = bot_url.strip() if bot_url and bot_url.strip() else DEFAULT_CALLBOT_URL
     print(f"🤖 Bot URL: {resolved_url}")
+    print(f"💬 Conversation ID: {code} (testing memory with {len(turns)} turn(s))")
 
     initial_state: TestcaseState = {
         "code": code,
@@ -346,7 +358,7 @@ async def run_testcase(
         "turns": turns,
         "criteria": criteria,
         "bot_url": resolved_url,
-        "conversation_id": f"{code}-{uuid.uuid4().hex[:8]}",
+        "conversation_id": code,  # ✅ Dùng code làm conversation_id để test memory
         "current_turn_index": 0,
         "turn_results": [],
         "error": ""

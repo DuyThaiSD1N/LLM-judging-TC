@@ -70,12 +70,30 @@ async def health_check():
     }
 
 # ── Serve frontend static files ───────────────────────────────────────────
+from fastapi.responses import Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Middleware to add no-cache headers for static files"""
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        # Add no-cache headers for JS/CSS files
+        if request.url.path.endswith(('.js', '.css', '.html')):
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+
+# Add no-cache middleware
+app.add_middleware(NoCacheMiddleware)
+
 frontend_path = Path(__file__).parent / "testcase-form"
 
 if frontend_path.exists():
-    # Mount assets (css, js)
+    # Mount assets (css, js, images)
     app.mount("/css", StaticFiles(directory=str(frontend_path / "css")), name="css")
     app.mount("/js", StaticFiles(directory=str(frontend_path / "js")), name="js")
+    app.mount("/assets", StaticFiles(directory=str(frontend_path / "assets")), name="assets")
     
     @app.get("/", include_in_schema=False)
     async def serve_index():
