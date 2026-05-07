@@ -125,6 +125,8 @@ class TurnResult(BaseModel):
     """Kết quả chạy một lượt hội thoại"""
     question: str
     expected: str
+    required_keywords: Optional[str] = None  # Thêm để tương thích với Turn
+    forbidden_keywords: Optional[str] = None  # Thêm để tương thích với Turn
     actual: str = ""
     action: str = ""
     response_time_ms: Optional[int] = None
@@ -227,4 +229,8 @@ class UploadExcelResponse(BaseModel):
 
 class ExportRequest(BaseModel):
     """Request cho export Excel - hỗ trợ cả testcase gốc và testcase có kết quả"""
-    testcases: List[TestcaseRunResult | TestcaseBase]
+    testcases: List[dict]  # Dùng dict để linh hoạt, parse thủ công trong router
+    
+    class Config:
+        # Allow extra fields
+        extra = "allow"

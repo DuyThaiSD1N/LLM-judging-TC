@@ -24,6 +24,10 @@ async function exportToExcel() {
         return;
     }
 
+    // Debug: Log dữ liệu trước khi gửi
+    console.log('📤 Exporting testcases:', testcases);
+    console.log('📤 First testcase turns:', testcases[0]?.turns);
+
     const btn = document.getElementById('btn-export');
     btn.disabled = true;
     btn.textContent = '⏳ Đang xuất...';

@@ -67,30 +67,29 @@ async def export_testcases(request: ExportRequest):
             "ux-focused": "Trải nghiệm"
         }
         
-        # Data rows
+        # Data rows - xử lý dict thay vì object
         for tc in request.testcases:
-            criteria_display = criteria_names.get(tc.criteria, tc.criteria)
-            bot_url_display = tc.bot_url if tc.bot_url else "mặc định"
+            criteria_display = criteria_names.get(tc.get('criteria', 'standard'), tc.get('criteria', 'standard'))
+            bot_url_display = tc.get('bot_url') if tc.get('bot_url') else "mặc định"
             
-            for idx, turn in enumerate(tc.turns):
-                # Get keywords for this turn
-                required_kw = getattr(turn, 'required_keywords', '') or ''
-                forbidden_kw = getattr(turn, 'forbidden_keywords', '') or ''
-                
-                # Hỗ trợ cả Turn (chưa chạy) và TurnResult (đã chạy)
-                actual = getattr(turn, 'actual', '') or ''
-                response_time = getattr(turn, 'response_time_ms', '') or ''
-                verdict = getattr(turn, 'verdict', '') or ''
-                error_desc = getattr(turn, 'error_desc', '') or ''
-                suggestion = getattr(turn, 'suggestion', '') or ''
-                suggested_response = getattr(turn, 'suggested_response', '') or ''
-                tone_note = getattr(turn, 'tone_note', '') or ''
+            turns = tc.get('turns', [])
+            for idx, turn in enumerate(turns):
+                # Lấy tất cả fields, hỗ trợ cả Turn và TurnResult
+                required_kw = turn.get('required_keywords', '') or ''
+                forbidden_kw = turn.get('forbidden_keywords', '') or ''
+                actual = turn.get('actual', '') or ''
+                response_time = turn.get('response_time_ms', '') or ''
+                verdict = turn.get('verdict', '') or ''
+                error_desc = turn.get('error_desc', '') or ''
+                suggestion = turn.get('suggestion', '') or ''
+                suggested_response = turn.get('suggested_response', '') or ''
+                tone_note = turn.get('tone_note', '') or ''
                 
                 row = [
-                    tc.name,
-                    tc.code,
-                    turn.question,
-                    turn.expected,
+                    tc.get('name', ''),
+                    tc.get('code', ''),
+                    turn.get('question', ''),
+                    turn.get('expected', ''),
                     required_kw,
                     forbidden_kw,
                     criteria_display,
