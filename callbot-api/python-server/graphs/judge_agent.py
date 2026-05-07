@@ -191,7 +191,8 @@ class JudgeAgent:
             time_label=time_label,
             criteria=criteria,  # Pass criteria to prompt
             required_keywords=required_keywords,
-            forbidden_keywords=forbidden_keywords
+            forbidden_keywords=forbidden_keywords,
+            inject_knowledge=True  # ← Enable knowledge base injection
         )
         
         # Retry logic với exponential backoff

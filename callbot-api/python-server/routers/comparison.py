@@ -641,20 +641,20 @@ Hãy phân tích và trả về:
             }]
         
         if not result.get("ranking") or len(result.get("ranking", [])) == 0:
-            # Auto-generate ranking based on verdict
+            # Auto-generate ranking based on verdict (use flat structure, not turns)
             testcases_sorted = sorted(
                 enumerate(testcases),
                 key=lambda x: (
-                    0 if x[1].turns[0].verdict == "PASSED" else 1,
-                    x[1].turns[0].response_time_ms or 9999
+                    0 if x[1].actual else 1,  # Has actual response
+                    x[1].response_time_ms or 9999
                 )
             )
             result["ranking"] = [
                 {
                     "rank": i + 1,
                     "testcase_code": tc.code,
-                    "score": 8 if tc.turns[0].verdict == "PASSED" else 5,
-                    "reason": f"Response {'đạt yêu cầu' if tc.turns[0].verdict == 'PASSED' else 'cần cải thiện'} với thời gian {tc.turns[0].response_time_ms}ms"
+                    "score": 7,  # Default score
+                    "reason": f"Response với thời gian {tc.response_time_ms or 0}ms"
                 }
                 for i, (idx, tc) in enumerate(testcases_sorted[:10])
             ]

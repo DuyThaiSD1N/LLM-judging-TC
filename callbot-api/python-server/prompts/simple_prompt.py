@@ -307,7 +307,8 @@ def create_simple_judge_prompt(
     time_label: str,
     criteria: str = "standard",
     required_keywords: str = None,
-    forbidden_keywords: str = None
+    forbidden_keywords: str = None,
+    inject_knowledge: bool = True
 ) -> str:
     """
     Tạo prompt cho judge với criteria cụ thể
@@ -320,6 +321,7 @@ def create_simple_judge_prompt(
         criteria: Tiêu chí (standard/strict/speed-focused/content-only/ux-focused)
         required_keywords: Từ khóa bắt buộc
         forbidden_keywords: Từ khóa cấm
+        inject_knowledge: Có inject knowledge base không (default: True)
     """
     
     # Get criteria-specific rules
@@ -332,10 +334,34 @@ def create_simple_judge_prompt(
     if forbidden_keywords:
         keywords_section += f"\n**Từ khóa CẤM:** {forbidden_keywords}"
     
+    # Inject knowledge base (if enabled)
+    knowledge_section = ""
+    if inject_knowledge:
+        try:
+            from knowledge import search_relevant_knowledge
+            knowledge_text = search_relevant_knowledge(question, top_k=2)
+            if knowledge_text and "Không tìm thấy" not in knowledge_text:
+                knowledge_section = f"""
+═══════════════════════════════════════════════════════════
+KNOWLEDGE BASE - THÔNG TIN THAM KHẢO
+═══════════════════════════════════════════════════════════
+
+{knowledge_text}
+
+**LƯU Ý:** Sử dụng thông tin trên để:
+- Đối chiếu xem response có đầy đủ thông tin theo quy định không
+- Kiểm tra tính chính xác (thời hạn, phí lệ phí, điều kiện...)
+- Gợi ý bổ sung thông tin còn thiếu dựa trên thủ tục chuẩn
+
+"""
+        except Exception as e:
+            print(f"⚠️ Failed to inject knowledge: {str(e)}")
+            knowledge_section = ""
+    
     prompt = f"""{BASE_SYSTEM_MESSAGE}
 
 {criteria_rule}
-
+{knowledge_section}
 ═══════════════════════════════════════════════════════════
 DỮ LIỆU CẦN ĐÁNH GIÁ
 ═══════════════════════════════════════════════════════════
