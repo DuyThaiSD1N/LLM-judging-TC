@@ -217,8 +217,19 @@ function formatDate(dateStr) {
     if (!dateStr) return 'N/A';
 
     try {
-        // Parse date - SQLite returns UTC timestamp
-        const date = new Date(dateStr);
+        // Parse date - Database returns local time in format 'YYYY-MM-DDTHH:MM:SS'
+        // We need to treat it as local time, not UTC
+        let date;
+
+        if (dateStr.includes('T')) {
+            // ISO format: 'YYYY-MM-DDTHH:MM:SS'
+            // Parse as local time by removing 'T' and using space
+            const localStr = dateStr.replace('T', ' ');
+            date = new Date(localStr);
+        } else {
+            // Already has space: 'YYYY-MM-DD HH:MM:SS'
+            date = new Date(dateStr);
+        }
 
         // Check if date is valid
         if (isNaN(date.getTime())) {
@@ -231,15 +242,6 @@ function formatDate(dateStr) {
         const minutes = Math.floor(diff / 60000);
         const hours = Math.floor(diff / 3600000);
         const days = Math.floor(diff / 86400000);
-
-        // Debug log
-        console.log('📅 Date parsing:', {
-            original: dateStr,
-            parsed: date.toISOString(),
-            now: now.toISOString(),
-            diff_ms: diff,
-            minutes: minutes
-        });
 
         if (minutes < 1) return 'Vừa xong';
         if (minutes < 60) return `${minutes} phút trước`;

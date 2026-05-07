@@ -153,11 +153,8 @@ class History:
         history = []
         for row in cursor.fetchall():
             item = dict(row)
-            # Ensure run_at is in ISO format for proper parsing in frontend
-            if item.get('run_at'):
-                # SQLite stores as 'YYYY-MM-DD HH:MM:SS', convert to ISO format
-                # Assume it's already in local time
-                item['run_at'] = item['run_at'].replace(' ', 'T')
+            # Keep run_at as-is (local time string from database)
+            # JavaScript will parse 'YYYY-MM-DD HH:MM:SS' as local time
             history.append(item)
         
         conn.close()
