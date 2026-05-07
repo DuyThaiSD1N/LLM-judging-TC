@@ -67,14 +67,15 @@ class History:
             cursor.execute(
                 """
                 INSERT INTO history (
-                    testcase_id, turn_number, question, expected, actual, action,
+                    testcase_id, turn_number, scenario, question, expected, actual, action,
                     response_time_ms, verdict, error_desc, suggestion, suggested_response,
-                    tone_note, time_verdict, time_note, criteria, error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    tone_note, time_verdict, time_note, criteria, error, run_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
                 """,
                 (
                     testcase_id,
                     idx + 1,
+                    turn.get("scenario"),
                     turn["question"],
                     turn["expected"],
                     turn.get("actual"),
@@ -149,7 +150,16 @@ class History:
             (limit,)
         )
         
-        history = [dict(row) for row in cursor.fetchall()]
+        history = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            # Ensure run_at is in ISO format for proper parsing in frontend
+            if item.get('run_at'):
+                # SQLite stores as 'YYYY-MM-DD HH:MM:SS', convert to ISO format
+                # Assume it's already in local time
+                item['run_at'] = item['run_at'].replace(' ', 'T')
+            history.append(item)
+        
         conn.close()
         
         return history

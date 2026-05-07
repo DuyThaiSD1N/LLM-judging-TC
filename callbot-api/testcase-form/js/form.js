@@ -37,6 +37,10 @@ function loadTestcaseToForm(index, tc) {
     document.getElementById('tc-name').value = tc.name;
     document.getElementById('tc-code').value = tc.code;
 
+    // Set scenario (nếu có - lấy từ turn đầu tiên)
+    const scenario = tc.turns[0]?.scenario || '';
+    document.getElementById('tc-scenario').value = scenario;
+
     // Set questions and expected
     const questions = tc.turns.map(t => t.question).join('\n');
     const expecteds = tc.turns.map(t => t.expected).join('\n');
@@ -73,6 +77,7 @@ function loadTestcaseToForm(index, tc) {
 function handleAdd() {
     const name = document.getElementById('tc-name').value.trim();
     const code = document.getElementById('tc-code').value.trim();
+    const scenario = document.getElementById('tc-scenario').value.trim();  // NEW
     const questions = parseLines(document.getElementById('tc-question').value);
     const expecteds = parseLines(document.getElementById('tc-expected').value);
 
@@ -95,6 +100,7 @@ function handleAdd() {
 
     // Build turns với keywords tương ứng từng dòng
     const turns = questions.map((q, i) => ({
+        scenario: scenario || null,  // NEW - Tất cả turns dùng chung scenario
         question: q,
         expected: expecteds[i],
         required_keywords: requiredKeywordsLines[i] || null,  // Dòng i của required keywords
@@ -130,6 +136,7 @@ export function resetForm() {
     document.getElementById('tc-name').value = '';
     document.getElementById('tc-code').value = '';
     document.getElementById('tc-code').readOnly = false;
+    document.getElementById('tc-scenario').value = '';  // NEW
     document.getElementById('tc-question').value = '';
     document.getElementById('tc-expected').value = '';
     document.getElementById('tc-bot-url').value = '';
@@ -138,7 +145,7 @@ export function resetForm() {
 
     // Reset placeholders
     document.getElementById('tc-question').placeholder = 'Nhập câu hỏi (mỗi dòng 1 câu)';
-    document.getElementById('tc-expected').placeholder = 'Nhập kỳ vọng (mỗi dòng 1 câu, tương ứng với câu hỏi)';
+    document.getElementById('tc-expected').placeholder = 'Nhập yêu cầu kỳ vọng (mỗi dòng 1 yêu cầu, tương ứng với câu hỏi)';
 
     // Reset button text and style
     const btnAdd = document.getElementById('btn-add');

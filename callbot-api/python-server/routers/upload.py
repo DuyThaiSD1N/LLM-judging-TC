@@ -47,12 +47,13 @@ def parse_excel_with_merged_cells(file_content: bytes):
         # Extract values from cells
         name = row[0].value if len(row) > 0 else None
         code = row[1].value if len(row) > 1 else None
-        question = row[2].value if len(row) > 2 else None
-        expected = row[3].value if len(row) > 3 else None
-        required_keywords = row[4].value if len(row) > 4 else None
-        forbidden_keywords = row[5].value if len(row) > 5 else None
-        criteria = row[6].value if len(row) > 6 else None
-        bot_url = row[7].value if len(row) > 7 else None
+        scenario = row[2].value if len(row) > 2 else None  # NEW: Setup lịch sử
+        question = row[3].value if len(row) > 3 else None
+        expected = row[4].value if len(row) > 4 else None
+        required_keywords = row[5].value if len(row) > 5 else None
+        forbidden_keywords = row[6].value if len(row) > 6 else None
+        criteria = row[7].value if len(row) > 7 else None
+        bot_url = row[8].value if len(row) > 8 else None
         
         # Handle merged cells: if value is None, use last value
         if name is None or str(name).strip() == "":
@@ -83,6 +84,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
         # Normalize values
         code = str(code).strip()
         name = str(name).strip() if name else code
+        scenario = str(scenario).strip() if scenario and str(scenario).strip() else None  # NEW
         question = str(question).strip()
         expected = str(expected).strip()
         required_keywords = str(required_keywords).strip() if required_keywords and str(required_keywords).strip() else None
@@ -102,6 +104,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
         
         # Add turn
         testcases_dict[code]["turns"].append({
+            "scenario": scenario,  # NEW
             "question": question,
             "expected": expected,
             "required_keywords": required_keywords,
@@ -128,11 +131,12 @@ async def upload_excel(file: UploadFile = File(...)):
     - Mỗi dòng = 1 lượt hội thoại (1 turn)
     
     FORMAT EXCEL:
-    | Tên TC | Mã TC | Câu hỏi | Kỳ vọng | LLM Judge | Bot URL |
-    |--------|-------|---------|---------|-----------|---------|
-    | Hỏi vợ | TC-001| Q1      | A1      | standard  | http... |
-    |        |       | Q2      | A2      |           |         |  <- Merged cells
-    |        |       | Q3      | A3      |           |         |  <- Merged cells
+    | Tên TC | Mã TC | Setup lịch sử | Câu hỏi | Yêu cầu kỳ vọng | Từ khóa BẮT BUỘC | Từ khóa CẤM | LLM Judge | Bot URL |
+    |--------|-------|---------------|---------|-----------------|-------------------|-------------|-----------|---------|
+    | Hỏi vợ | TC-001| [user]Q1\n[assistant]A1 | Q2 | A2 | keyword1 | keyword2 | standard | http... |
+    |        |       |               | Q3      | A3      |           |         |           |         |  <- Merged cells
+    
+    LƯU Ý: Setup lịch sử - Bot chỉ nhận câu hỏi [user] để warmup, [assistant] chỉ để tham khảo
     
     POST /api/upload-excel
     """
@@ -168,6 +172,7 @@ async def upload_excel(file: UploadFile = File(...)):
         for tc in testcases_data:
             turns = [
                 Turn(
+                    scenario=turn.get("scenario"),  # NEW
                     question=turn["question"],
                     expected=turn["expected"],
                     required_keywords=turn.get("required_keywords"),

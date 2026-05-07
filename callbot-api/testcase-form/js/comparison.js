@@ -85,10 +85,6 @@ function showComparisonModal(testcases, mode) {
                 <button id="btn-close-comparison" class="btn-close">✕</button>
             </div>
             <div class="modal-body">
-                <div class="comparison-mode-badge">
-                    ${getModeBadge(mode)}
-                </div>
-                
                 <div class="comparison-tabs">
                     <button class="comparison-tab active" data-tab="table">📊 Bảng so sánh</button>
                     <button class="comparison-tab" data-tab="analysis">🤖 Phân tích LLM</button>
@@ -405,25 +401,6 @@ function renderLLMAnalysis(result, testcases) {
         ` : ''}
     `;
 
-    // Render Ranking
-    const ranking = analysis.ranking || [];
-    const rankingHtml = ranking.length > 0
-        ? `
-            <div class="ranking-list">
-                ${ranking.map(r => `
-                    <div class="ranking-item">
-                        <div class="ranking-badge rank-${r.rank}">#${r.rank}</div>
-                        <div class="ranking-info">
-                            <div class="ranking-code">${r.testcase_code}</div>
-                            <div class="ranking-reason">${r.reason}</div>
-                        </div>
-                        <div class="ranking-score">${r.score}/10</div>
-                    </div>
-                `).join('')}
-            </div>
-        `
-        : '<p class="empty-state">Không có xếp hạng</p>';
-
     // Render Recommendations
     const recommendations = analysis.recommendations || [];
     const recommendationsHtml = recommendations.length > 0
@@ -463,22 +440,17 @@ function renderLLMAnalysis(result, testcases) {
             </div>
 
             <div class="analysis-section">
-                <h3>⚡ Phân tích Performance</h3>
+                <h3>⚡ So sánh Performance</h3>
                 ${performanceHtml}
             </div>
 
             <div class="analysis-section">
-                <h3>📝 Phân tích Nội dung</h3>
+                <h3>📝 So sánh Nội dung</h3>
                 ${contentHtml}
             </div>
 
             <div class="analysis-section">
-                <h3>🏅 Xếp hạng Testcases</h3>
-                ${rankingHtml}
-            </div>
-
-            <div class="analysis-section">
-                <h3>💡 Đề xuất cải thiện</h3>
+                <h3>💡 Đề xuất cải thiện cho cả 2 testcase</h3>
                 ${recommendationsHtml}
             </div>
 

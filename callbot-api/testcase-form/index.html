@@ -8,184 +8,262 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Chatbot Quality Assurance</title>
-    <link rel="stylesheet" href="css/style.css?v=200" />
+    <title>Callbot HCC Runner - Testcase Runner v2.0</title>
+    <link rel="icon" type="image/png" href="assets/check-icon.png" />
+    <link rel="stylesheet" href="css/style.css?v=300" />
 </head>
 
-<body>
+<body class="sidebar-layout">
 
-    <!-- ── TOP NAV ── -->
-    <nav class="topnav">
-        <div class="topnav-brand">
-            <span class="brand-icon">
-                <img src="assets/check-icon.png" alt="Check" style="width: 24px; height: 24px;" />
-            </span>
-            <span class="brand-name">Chatbot <span class="brand-sub">Quality Assurance</span></span>
+    <!-- ── SIDEBAR ── -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <img src="assets/check-icon.png" alt="Callbot HCC" class="sidebar-logo" />
+            <div class="sidebar-brand">
+                <div class="sidebar-brand-name">Callbot HCC Runner</div>
+                <div class="sidebar-brand-sub">Callbot HCC Testcase Runner v2.0</div>
+            </div>
         </div>
-        <div class="topnav-actions">
-            <button id="btn-history" class="btn-history">
-                📊 Lịch sử đánh giá
-            </button>
-            <button id="btn-export" class="btn-history">
-                📥 Xuất Excel
-            </button>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-nav-item active" data-view="testcases">
+                <span class="nav-icon">📋</span>
+                <span class="nav-text">Testcases</span>
+            </a>
+            <a href="#" class="sidebar-nav-item" data-view="history">
+                <span class="nav-icon">
+                    <img src="assets/history-icon.png" alt="History" class="nav-icon-img" />
+                </span>
+                <span class="nav-text">History</span>
+            </a>
+            <a href="#" class="sidebar-nav-item" data-view="export">
+                <span class="nav-icon">⬇</span>
+                <span class="nav-text">Export</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-version">Version 2.0</div>
         </div>
-    </nav>
+    </aside>
 
-    <div class="page-body">
+    <!-- ── MAIN CONTENT ── -->
+    <main class="main-content">
 
-        <!-- FORM CARD -->
-        <section class="form-card">
-            <div class="form-card-header">
-                <h2 class="section-title-lg">Thêm Testcase</h2>
-                <div class="header-right">
-                    <!-- Import Excel -->
-                    <div id="upload-zone" class="upload-btn">
-                        <span>📂 Import Excel</span>
-                        <input type="file" id="file-input" accept=".xlsx,.xls" />
-                    </div>
-                    <button id="btn-template" class="upload-btn">⬇ Tải Excel mẫu</button>
-                    <span class="tc-counter">Tổng: <span id="tc-count" class="counter-num">0</span></span>
-                </div>
+        <!-- TOP HEADER -->
+        <header class="main-header">
+            <div class="header-left">
+                <h1 class="header-title" id="view-title">Testcases</h1>
             </div>
-
-            <div id="upload-status" class="upload-status"></div>
-
-            <!-- Row 1: Tên + Mã -->
-            <div class="form-row-2">
-                <div class="field">
-                    <label class="field-label">Tên Testcase <span class="req">*</span></label>
-                    <input id="tc-name" type="text" class="input" placeholder="VD: Hỏi thủ tục đăng ký kết hôn" />
-                </div>
-                <div class="field">
-                    <label class="field-label">Mã Testcase <span class="req">*</span></label>
-                    <input id="tc-code" type="text" class="input" placeholder="VD: TC-001" />
-                </div>
+            <div class="header-right">
+                <button class="btn-icon" id="btn-system-loading" title="System Loading">
+                    <span class="status-dot status-connected"></span>
+                    System Loading
+                </button>
             </div>
+        </header>
 
-            <!-- Row 1b: Bot URL -->
-            <div class="form-row-bot-url">
-                <div class="field">
-                    <label class="field-label">Bot URL cho testcase này</label>
-                    <input id="tc-bot-url" type="text" class="input"
-                        placeholder="Để trống = dùng URL mặc định từ server (mỗi testcase có thể có URL riêng)" />
-                </div>
-            </div>
+        <!-- CONTENT AREA -->
+        <div class="content-area">
 
-            <!-- Row 2: Câu hỏi + Kỳ vọng -->
-            <div class="form-row-2">
-                <div class="field">
-                    <label class="field-label">Câu hỏi từ User <span class="req">*</span></label>
-                    <textarea id="tc-question" class="input textarea no-resize"
-                        placeholder="Mỗi dòng là 1 câu hỏi&#10;VD:&#10;đăng ký kết hôn cần giấy tờ gì&#10;lệ phí là bao nhiêu"></textarea>
-                </div>
-                <div class="field">
-                    <label class="field-label">Câu trả lời kỳ vọng <span class="req">*</span></label>
-                    <textarea id="tc-expected" class="input textarea no-resize"
-                        placeholder="Mỗi dòng là kỳ vọng tương ứng&#10;VD:&#10;cần CMND, giấy xác nhận độc thân&#10;miễn phí"></textarea>
-                </div>
-            </div>
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- VIEW: RUN CONTROL -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- VIEW: TESTCASES -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <div id="view-testcases" class="view-content active">
 
-            <!-- Row 2b: Keywords (optional) -->
-            <div class="form-row-2">
-                <div class="field">
-                    <label class="field-label">Từ khóa BẮT BUỘC phải có (không bắt buộc)</label>
-                    <textarea id="tc-required-keywords" class="input textarea no-resize"
-                        placeholder="Mỗi dòng là từ khóa cho 1 lượt hội thoại&#10;VD:&#10;UBND xã, khảo sát, quyết định&#10;thời hạn, 15 ngày"></textarea>
-                    <small style="color: #666; font-size: 12px;">Mỗi dòng tương ứng với 1 lượt hội thoại. Các từ khóa
-                        trong cùng dòng cách nhau bởi dấu phẩy.</small>
-                </div>
-                <div class="field">
-                    <label class="field-label">Từ khóa KHÔNG ĐƯỢC có (không bắt buộc)</label>
-                    <textarea id="tc-forbidden-keywords" class="input textarea no-resize"
-                        placeholder="Mỗi dòng là từ khóa cho 1 lượt hội thoại&#10;VD:&#10;không rõ, chưa xác định&#10;liên hệ sau, không biết"></textarea>
-                    <small style="color: #666; font-size: 12px;">Mỗi dòng tương ứng với 1 lượt hội thoại. Các từ khóa
-                        trong cùng dòng cách nhau bởi dấu phẩy.</small>
-                </div>
-            </div>
-
-            <!-- Row 3: Tiêu chí LLM Judge -->
-            <div class="form-row-1">
-                <div class="field">
-                    <label class="field-label">
-                        LLM Judge
-                        <button type="button" id="btn-criteria-info" class="btn-info"
-                            title="Xem chi tiết các tiêu chí">ℹ</button>
-                    </label>
-                    <!-- Custom dropdown -->
-                    <div class="criteria-dropdown" id="criteria-dropdown">
-                        <button type="button" class="criteria-trigger" id="criteria-trigger">
-                            <span id="criteria-selected-display">
-                                <span class="trigger-placeholder">Tiêu chí Chuẩn</span>
-                            </span>
-                            <span class="trigger-arrow">▾</span>
-                        </button>
-                        <div class="criteria-popup" id="criteria-popup">
-                            <!-- Will be populated by JavaScript -->
+                <!-- FORM CARD -->
+                <section class="form-card">
+                    <div class="form-card-header">
+                        <h2 class="section-title-lg">Thêm Testcase</h2>
+                        <div class="header-right">
+                            <!-- Import Excel -->
+                            <button id="btn-import-excel" class="btn btn-secondary"
+                                onclick="document.getElementById('file-input').click()">
+                                📂 Import Excel
+                            </button>
+                            <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none;" />
+                            <button id="btn-template" class="btn btn-secondary">⬇ Tải mẫu</button>
+                            <span class="tc-counter">Tổng: <span id="tc-count" class="counter-num">0</span></span>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <div class="form-actions">
-                <button id="btn-reset" class="btn btn-ghost">Làm mới</button>
-                <button id="btn-add" class="btn btn-primary">+ Thêm Testcase</button>
-            </div>
-        </section>
+                    <div id="upload-status" class="upload-status" style="display:none;"></div>
 
-        <!-- TABLE -->
-        <section class="table-section">
-            <div class="table-section-header">
-                <h2 class="section-title-lg">Đánh giá Testcase</h2>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btn-compare" class="btn btn-compare" disabled>⚖️ So sánh</button>
-                    <button id="btn-clear-all" class="btn btn-danger">🗑 Xóa tất cả</button>
-                    <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả testcase</button>
-                </div>
-            </div>
-
-            <!-- Filter Section -->
-            <div class="filter-section">
-                <div class="filter-row">
-                    <div class="filter-search">
-                        <input type="text" id="search-input" class="filter-input"
-                            placeholder="🔍 Tìm kiếm theo mã hoặc tên testcase..." />
+                    <!-- Row 1: Tên + Mã -->
+                    <div class="form-row-2">
+                        <div class="field">
+                            <label class="field-label">Tên Testcase <span class="req">*</span></label>
+                            <input id="tc-name" type="text" class="input"
+                                placeholder="VD: Hỏi thủ tục đăng ký kết hôn" />
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Mã Testcase <span class="req">*</span></label>
+                            <input id="tc-code" type="text" class="input" placeholder="VD: TC-001" />
+                        </div>
                     </div>
-                    <div class="filter-group">
-                        <select id="filter-criteria" class="filter-select">
-                            <option value="all">Tất cả LLM Judge</option>
-                            <option value="standard">Chuẩn</option>
-                            <option value="strict">Nghiêm ngặt</option>
-                            <option value="speed-focused">Tốc độ</option>
-                            <option value="content-only">Nội dung</option>
-                            <option value="ux-focused">Trải nghiệm</option>
-                        </select>
+
+                    <!-- Row 1b: Scenario (Setup lịch sử) -->
+                    <div class="form-row-bot-url">
+                        <div class="field">
+                            <label class="field-label">Setup lịch sử hội thoại (không bắt buộc)</label>
+                            <textarea id="tc-scenario" class="input textarea"
+                                placeholder="Format: [user] câu hỏi&#10;[assistant] câu trả lời (chỉ để tham khảo, không gửi cho bot)&#10;&#10;VD:&#10;[user] đăng ký lại khai sinh thì làm sao vậy?&#10;[assistant] Dạ về thủ tục Đăng ký lại khai sinh...&#10;&#10;Bot sẽ nhận câu hỏi [user] để warmup, sau đó mới test câu hỏi chính"></textarea>
+                        </div>
                     </div>
-                    <div class="filter-group">
-                        <select id="filter-status" class="filter-select">
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="pending">Chưa chạy</option>
-                            <option value="done">Đã chạy</option>
-                            <option value="passed">Tất cả đạt yêu cầu</option>
-                            <option value="failed">Có cần cải thiện</option>
-                        </select>
+
+                    <!-- Row 1c: Bot URL -->
+                    <div class="form-row-bot-url">
+                        <div class="field">
+                            <label class="field-label">Bot URL cho testcase này</label>
+                            <input id="tc-bot-url" type="text" class="input"
+                                placeholder="Để trống = dùng URL mặc định từ server" />
+                        </div>
                     </div>
-                </div>
-                <div id="filter-info" class="filter-info" style="display:none;"></div>
+
+                    <!-- Row 2: Câu hỏi + Yêu cầu kỳ vọng -->
+                    <div class="form-row-2">
+                        <div class="field">
+                            <label class="field-label">Câu hỏi từ User <span class="req">*</span></label>
+                            <textarea id="tc-question" class="input textarea no-resize"
+                                placeholder="Mỗi dòng là 1 câu hỏi&#10;VD:&#10;đăng ký kết hôn cần giấy tờ gì"></textarea>
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Yêu cầu kỳ vọng <span class="req">*</span></label>
+                            <textarea id="tc-expected" class="input textarea no-resize"
+                                placeholder="Mỗi dòng là yêu cầu tương ứng (không phải câu trả lời cụ thể)&#10;VD:&#10;cần CMND, giấy xác nhận độc thân"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Row 2b: Keywords -->
+                    <div class="form-row-2">
+                        <div class="field">
+                            <label class="field-label">Từ khóa BẮT BUỘC (không bắt buộc)</label>
+                            <textarea id="tc-required-keywords" class="input textarea no-resize"
+                                placeholder="Mỗi dòng là từ khóa cho 1 lượt hội thoại"></textarea>
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Từ khóa CẤM (không bắt buộc)</label>
+                            <textarea id="tc-forbidden-keywords" class="input textarea no-resize"
+                                placeholder="Mỗi dòng là từ khóa cho 1 lượt hội thoại"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Tiêu chí -->
+                    <div class="form-row-1">
+                        <div class="field">
+                            <label class="field-label">
+                                LLM Judge
+                                <button type="button" id="btn-criteria-info" class="btn-info">ℹ</button>
+                            </label>
+                            <div class="criteria-dropdown" id="criteria-dropdown">
+                                <button type="button" class="criteria-trigger" id="criteria-trigger">
+                                    <span id="criteria-selected-display">
+                                        <span class="trigger-placeholder">Tiêu chí Chuẩn</span>
+                                    </span>
+                                    <span class="trigger-arrow">▾</span>
+                                </button>
+                                <div class="criteria-popup" id="criteria-popup"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button id="btn-reset" class="btn btn-ghost">Làm mới</button>
+                        <button id="btn-add" class="btn btn-primary">+ Thêm Testcase</button>
+                    </div>
+                </section>
+
+                <!-- TABLE -->
+                <section class="table-section">
+                    <div class="table-section-header">
+                        <h2 class="section-title-lg">Danh sách Testcase</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="btn-compare" class="btn btn-compare" disabled>⚖️ So sánh</button>
+                            <button id="btn-clear-all" class="btn btn-danger">🗑 Xóa tất cả</button>
+                            <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả</button>
+                        </div>
+                    </div>
+
+                    <!-- Filter Section -->
+                    <div class="filter-section">
+                        <div class="filter-row">
+                            <div class="filter-search">
+                                <input type="text" id="search-input" class="filter-input"
+                                    placeholder="🔍 Tìm kiếm..." />
+                            </div>
+                            <div class="filter-group">
+                                <select id="filter-criteria" class="filter-select">
+                                    <option value="all">Tất cả LLM Judge</option>
+                                    <option value="standard">Chuẩn</option>
+                                    <option value="strict">Nghiêm ngặt</option>
+                                    <option value="speed-focused">Tốc độ</option>
+                                    <option value="content-only">Nội dung</option>
+                                    <option value="ux-focused">Trải nghiệm</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <select id="filter-status" class="filter-select">
+                                    <option value="all">Tất cả trạng thái</option>
+                                    <option value="pending">Chưa chạy</option>
+                                    <option value="done">Đã chạy</option>
+                                    <option value="passed">Đạt yêu cầu</option>
+                                    <option value="failed">Cần cải thiện</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="filter-info" class="filter-info" style="display:none;"></div>
+                    </div>
+
+                    <div id="table-container">
+                        <div class="empty-state">
+                            <div class="empty-icon">📭</div>
+                            <p>Chưa có testcase nào.</p>
+                            <p class="empty-sub">Thêm testcase bên trên hoặc import từ Excel.</p>
+                        </div>
+                    </div>
+                </section>
+
             </div>
 
-            <div id="table-container">
-                <div class="empty-state">
-                    <div class="empty-icon">📭</div>
-                    <p>Chưa có testcase nào.</p>
-                    <p class="empty-sub">Thêm testcase bên trên hoặc import từ Excel.</p>
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- VIEW: HISTORY -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <div id="view-history" class="view-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">📊 Lịch sử đánh giá</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div id="history-stats" class="history-stats"></div>
+                        <div id="history-list" class="history-list"></div>
+                    </div>
                 </div>
             </div>
-        </section>
 
-    </div>
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- VIEW: EXPORT -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <div id="view-export" class="view-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">� Xuất Excel</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p>Xuất tất cả testcase và kết quả đánh giá ra file Excel.</p>
+                        <button id="btn-export" class="btn btn-primary">📥 Xuất Excel</button>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Criteria Info Modal -->
+        </div>
+
+    </main>
+
+    <!-- Modals -->
     <div id="criteria-modal" class="modal">
         <div class="modal-content" style="max-width:900px;">
             <div class="modal-header">
@@ -198,22 +276,8 @@
         </div>
     </div>
 
-    <!-- History Modal -->
-    <div id="history-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>📊 Lịch sử đánh giá</h2>
-                <button id="btn-close-history" class="btn-close">✕</button>
-            </div>
-            <div class="modal-body">
-                <div id="history-stats" class="history-stats"></div>
-                <div id="history-list" class="history-list"></div>
-            </div>
-        </div>
-    </div>
-
     <div id="toast"></div>
-    <script type="module" src="js/main.js?v=200"></script>
+    <script type="module" src="js/main.js?v=300"></script>
 </body>
 
 </html>

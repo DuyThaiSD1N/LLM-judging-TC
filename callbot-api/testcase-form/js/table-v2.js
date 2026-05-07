@@ -89,6 +89,7 @@ export function resetTurnData(tcIdx) {
   const tc = testcases[tcIdx];
   if (!tc) return;
   tc.turns = tc.turns.map(t => ({
+    scenario: t.scenario || null,  // Preserve scenario
     question: t.question,
     expected: t.expected,
     required_keywords: t.required_keywords || null,  // Preserve keywords
@@ -126,6 +127,7 @@ function initRow(tc) {
     status: 'pending',
     error: '',
     turns: turns.map(t => ({
+      scenario: t.scenario || null,  // Preserve scenario
       question: t.question,
       expected: t.expected,
       required_keywords: t.required_keywords || null,  // Preserve keywords
@@ -228,6 +230,10 @@ export function renderEval() {
           ${checkboxCell}
           ${tcCells}
           <td class="col-turn-num">Lượt ${j + 1}</td>
+          <td class="col-scenario">${turn.scenario
+          ? `<span class="scenario-text" title="${turn.scenario.replace(/"/g, '&quot;')}">${turn.scenario.substring(0, 50)}${turn.scenario.length > 50 ? '...' : ''}</span>`
+          : '<span class="cell-empty">—</span>'
+        }</td>
           <td class="col-q">${turn.question}</td>
           <td class="col-e">${turn.expected}</td>
           <td class="col-keywords">${turn.required_keywords || '<span class="cell-empty">—</span>'}</td>
@@ -243,34 +249,33 @@ export function renderEval() {
   }).join('');
 
   container.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th class="col-checkbox">
-              <input type="checkbox" id="select-all-checkbox" title="Chọn tất cả" />
-            </th>
-            <th>#</th>
-            <th>Mã TC</th>
-            <th>Tên Testcase</th>
-            <th>LLM Judge</th>
-            <th>Bot URL</th>
-            <th>Lượt</th>
-            <th>Câu hỏi từ User</th>
-            <th>Câu trả lời kỳ vọng</th>
-            <th>Từ khóa bắt buộc</th>
-            <th>Từ khóa cấm</th>
-            <th>Câu trả lời thực tế</th>
-            <th>Thời gian</th>
-            <th>Kết quả</th>
-            <th>Lỗi</th>
-            <th>Đề xuất sửa</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    <table class="testcase-table">
+      <thead>
+        <tr>
+          <th class="col-checkbox">
+            <input type="checkbox" id="select-all-checkbox" title="Chọn tất cả" />
+          </th>
+          <th>#</th>
+          <th>Mã TC</th>
+          <th>Tên Testcase</th>
+          <th>LLM Judge</th>
+          <th>Bot URL</th>
+          <th>Lượt</th>
+          <th>Setup lịch sử</th>
+          <th>Câu hỏi từ User</th>
+          <th>Yêu cầu kỳ vọng</th>
+          <th>Từ khóa bắt buộc</th>
+          <th>Từ khóa cấm</th>
+          <th>Câu trả lời thực tế</th>
+          <th>Thời gian</th>
+          <th>Kết quả</th>
+          <th>Lỗi</th>
+          <th>Đề xuất sửa</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 
   // Event listeners
   container.querySelectorAll('.btn-del').forEach(btn =>
@@ -422,21 +427,21 @@ function renderErrorDesc(turn, tcStatus) {
   if (tcStatus !== 'done') return '<span class="cell-empty">—</span>';
   if (turn.verdict === 'PASSED') return '<span class="cell-empty">—</span>';
 
-  // Ưu tiên error_desc, fallback về reasoning nếu error_desc rỗng
-  const desc = turn.error_desc || (turn.reasoning ? '⚠️ Xem reasoning' : '');
-  if (!desc) return '<span class="cell-empty">—</span>';
-
-  // Thêm reasoning tooltip nếu có
-  let reasoningAttr = '';
-  if (turn.reasoning) {
-    // Reasoning có thể là string hoặc object
-    const reasoningText = typeof turn.reasoning === 'string'
-      ? turn.reasoning
-      : JSON.stringify(turn.reasoning, null, 2);
-    reasoningAttr = `title="${reasoningText.replace(/"/g, '&quot;').replace(/\n/g, ' ')}"`;
+  // Xử lý error_desc - có thể là string hoặc object
+  let desc = turn.error_desc;
+  if (typeof desc === 'object' && desc !== null) {
+    // Nếu là object, lấy field 'error' hoặc stringify
+    desc = desc.error || JSON.stringify(desc);
   }
 
-  return `<div class="judge-text err-text" ${reasoningAttr}>${desc}</div>`;
+  // Fallback về reasoning nếu error_desc rỗng
+  if (!desc) {
+    desc = turn.reasoning ? '⚠️ Xem reasoning' : '';
+  }
+
+  if (!desc) return '<span class="cell-empty">—</span>';
+
+  return `<div class="judge-text err-text">${desc}</div>`;
 }
 
 function renderSuggestion(turn, tcStatus) {

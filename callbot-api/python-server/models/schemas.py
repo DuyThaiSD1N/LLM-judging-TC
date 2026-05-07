@@ -12,8 +12,9 @@ from pydantic import BaseModel, Field
 
 class Turn(BaseModel):
     """Một lượt hội thoại trong testcase"""
+    scenario: Optional[str] = None  # Lịch sử hội thoại trước đó (setup context)
     question: str
-    expected: str
+    expected: str  # Đổi tên: "Yêu cầu kỳ vọng" thay vì "Câu trả lời kỳ vọng"
     required_keywords: Optional[str] = None  # Từ khóa bắt buộc (optional)
     forbidden_keywords: Optional[str] = None  # Từ khóa cấm (optional)
 
@@ -123,8 +124,9 @@ class JudgeResult(BaseModel):
 
 class TurnResult(BaseModel):
     """Kết quả chạy một lượt hội thoại"""
+    scenario: Optional[str] = None  # Lịch sử hội thoại
     question: str
-    expected: str
+    expected: str  # Yêu cầu kỳ vọng
     required_keywords: Optional[str] = None  # Thêm để tương thích với Turn
     forbidden_keywords: Optional[str] = None  # Thêm để tương thích với Turn
     actual: str = ""
@@ -189,6 +191,7 @@ class HistoryRecord(BaseModel):
     id: int
     testcase_id: int
     turn_number: int
+    scenario: Optional[str] = None
     question: str
     expected: str
     actual: Optional[str]

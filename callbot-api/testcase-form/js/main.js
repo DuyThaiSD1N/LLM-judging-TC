@@ -11,9 +11,13 @@ import { initFilter } from './filter-v2.js';
 import { initComparison } from './comparison.js';
 import { showToast } from './toast.js';
 import { API_ENDPOINTS, API_KEY } from './config.js';
+import { initNavigation } from './navigation.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 App initialized');
+
+    // Initialize navigation first
+    initNavigation();
 
     setRunSingleFn(runSingle);
     initForm();

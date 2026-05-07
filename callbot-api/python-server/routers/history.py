@@ -64,3 +64,33 @@ async def cleanup_history(days: int = Query(30, ge=1, le=365)):
         return {"success": True, "deleted": deleted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/history/fix-timezone")
+async def fix_timezone():
+    """
+    Fix timezone cho các records cũ (chuyển từ UTC sang localtime)
+    
+    POST /api/history/fix-timezone
+    """
+    try:
+        from config.database import get_db
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # Update all records to use localtime
+        # Note: This assumes records were saved in UTC and need to be converted
+        cursor.execute("""
+            UPDATE history
+            SET run_at = datetime(run_at, 'localtime')
+            WHERE run_at IS NOT NULL
+        """)
+        
+        updated = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        return {"success": True, "updated": updated, "message": f"Fixed {updated} records"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

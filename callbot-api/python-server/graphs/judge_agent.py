@@ -169,10 +169,10 @@ class JudgeAgent:
         
         Args:
             question: Câu hỏi
-            expected: Câu trả lời kỳ vọng
+            expected: YÊU CẦU KỲ VỌNG (không phải câu trả lời cụ thể)
             actual: Câu trả lời thực tế
             response_time_ms: Thời gian phản hồi (ms)
-            criteria: Tiêu chí đánh giá (giữ lại để tương thích, nhưng không dùng)
+            criteria: Tiêu chí đánh giá
             required_keywords: Từ khóa bắt buộc (optional)
             forbidden_keywords: Từ khóa cấm (optional)
             

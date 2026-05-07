@@ -28,8 +28,9 @@ async def get_template():
     headers = [
         "Tên Testcase",
         "Mã Testcase",
+        "Setup lịch sử (không bắt buộc)",
         "Câu hỏi từ User",
-        "Câu trả lời kỳ vọng",
+        "Yêu cầu kỳ vọng",
         "Từ khóa BẮT BUỘC (tùy chọn)",
         "Từ khóa CẤM (tùy chọn)",
         "LLM Judge (standard/strict/speed-focused/content-only/ux-focused)",
@@ -41,6 +42,7 @@ async def get_template():
     sample = [
         "Hỏi thủ tục đăng ký kết hôn",
         "TC-001",
+        "[user] đăng ký lại khai sinh thì làm sao vậy?\n[assistant] Dạ về thủ tục Đăng ký lại khai sinh, người dân nộp hồ sơ tại Ủy ban nhân dân cấp xã hoặc nộp trực tuyến qua Cổng dịch vụ công. Thời hạn giải quyết là 5 Ngày, trường hợp phải xác minh thì không quá 25 ngày ạ.",  # Setup lịch sử - [assistant] chỉ để tham khảo
         "đăng ký kết hôn cần giấy tờ gì",
         "Cần CMND/CCCD và giấy xác nhận tình trạng hôn nhân, nộp tại UBND cấp xã",
         "CMND, giấy xác nhận",  # Từ khóa bắt buộc
@@ -51,7 +53,7 @@ async def get_template():
     ws.append(sample)
     
     # Column widths
-    column_widths = [35, 12, 45, 60, 30, 30, 50, 40]
+    column_widths = [35, 12, 50, 45, 60, 30, 30, 50, 40]
     for idx, width in enumerate(column_widths, 1):
         ws.column_dimensions[chr(64 + idx)].width = width
     

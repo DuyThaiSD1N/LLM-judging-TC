@@ -117,6 +117,47 @@ async def call_bot(conversation_id: str, message: str, bot_url: str) -> Dict[str
     }
 
 
+async def setup_scenario(conversation_id: str, scenario: str, bot_url: str) -> None:
+    """
+    Setup scenario bằng cách gửi các câu hỏi của user trong lịch sử hội thoại.
+    Format: [user] message\n[assistant] response\n...
+    
+    CHỈ GỬI CÂU HỎI CỦA USER, BỎ QUA PHẦN ASSISTANT.
+    Mục đích: Tạo context/lịch sử hội thoại cho bot.
+    Thời gian setup scenario KHÔNG được tính vào response_time_ms.
+    """
+    if not scenario or not scenario.strip():
+        return
+    
+    print(f"[setup_scenario] Parsing scenario...")
+    
+    # Parse scenario - CHỈ LẤY CÂU HỎI CỦA USER
+    lines = scenario.strip().split('\n')
+    user_messages = []
+    
+    for line in lines:
+        line = line.strip()
+        if line.startswith('[user]'):
+            msg = line.replace('[user]', '').strip()
+            if msg:
+                user_messages.append(msg)
+        # BỎ QUA [assistant] - không cần parse
+    
+    print(f"[setup_scenario] Found {len(user_messages)} user messages in scenario")
+    
+    # Gửi các câu hỏi user để tạo context (không quan tâm response)
+    for msg in user_messages:
+        print(f"[setup_scenario] Sending user message: {msg[:50]}...")
+        try:
+            # Gọi bot để tạo context, không lưu response
+            await call_bot(conversation_id, msg, bot_url)
+            print(f"[setup_scenario] ✓ Context created (response ignored)")
+        except Exception as e:
+            print(f"[setup_scenario] Warning: Failed to send scenario message: {e}")
+    
+    print(f"[setup_scenario] Scenario setup completed - {len(user_messages)} messages sent")
+
+
 # ============================================================================
 # Graph Nodes
 # ============================================================================
@@ -125,11 +166,21 @@ async def call_bot(conversation_id: str, message: str, bot_url: str) -> Dict[str
 async def warmup_node(state: TestcaseState) -> TestcaseState:
     """
     Node 1: Warmup - Gửi "xin chào" để khởi động hội thoại và skip câu chào mặc định.
+    Sau đó setup scenario nếu có (từ turn đầu tiên).
     Thời gian warmup KHÔNG được tính vào response_time_ms của các actual turns.
     """
     print(f"[warmup_node] {state['code']} → Starting warmup (conversation_id={state['conversation_id']})")
     await call_bot_warmup(state["conversation_id"], state["bot_url"])
-    print(f"[warmup_node] {state['code']} → Warmup completed, ready for actual turns")
+    print(f"[warmup_node] {state['code']} → Warmup completed")
+    
+    # Setup scenario nếu có (lấy từ turn đầu tiên)
+    if state["turns"] and state["turns"][0].get("scenario"):
+        scenario = state["turns"][0]["scenario"]
+        print(f"[warmup_node] {state['code']} → Setting up scenario...")
+        await setup_scenario(state["conversation_id"], scenario, state["bot_url"])
+        print(f"[warmup_node] {state['code']} → Scenario setup completed")
+    
+    print(f"[warmup_node] {state['code']} → Ready for actual turns")
 
     return {
         **state,
@@ -142,6 +193,7 @@ async def warmup_node(state: TestcaseState) -> TestcaseState:
 async def run_turn_node(state: TestcaseState) -> TestcaseState:
     """
     Node 2: Run Turn - Chạy một lượt hội thoại
+    Scenario đã được setup trong warmup_node, không cần setup lại ở đây
     """
     turn_index = state["current_turn_index"]
     turn = state["turns"][turn_index]
@@ -149,8 +201,11 @@ async def run_turn_node(state: TestcaseState) -> TestcaseState:
     print(f"[run_turn] {state['code']} turn {turn_index + 1}/{len(state['turns'])}")
     
     turn_result = {
+        "scenario": turn.get("scenario"),
         "question": turn["question"],
         "expected": turn["expected"],
+        "required_keywords": turn.get("required_keywords"),
+        "forbidden_keywords": turn.get("forbidden_keywords"),
         "actual": "",
         "action": "",
         "response_time_ms": None,
@@ -165,7 +220,7 @@ async def run_turn_node(state: TestcaseState) -> TestcaseState:
     }
     
     try:
-        # Call bot dùng conversation_id ngẫu nhiên (không phải mã testcase)
+        # Call bot với câu hỏi chính (scenario đã được setup trong warmup)
         bot_response = await call_bot(state["conversation_id"], turn["question"], state["bot_url"])
         turn_result["actual"] = bot_response["answer"]
         turn_result["action"] = bot_response["action"]
