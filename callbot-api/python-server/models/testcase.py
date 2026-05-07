@@ -46,10 +46,10 @@ class Testcase:
             for idx, turn in enumerate(testcase["turns"]):
                 cursor.execute(
                     """
-                    INSERT INTO turns (testcase_id, turn_number, question, expected)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO turns (testcase_id, turn_number, scenario, question, expected)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (testcase_id, next_turn_number + idx, turn["question"], turn["expected"])
+                    (testcase_id, next_turn_number + idx, turn.get("scenario"), turn["question"], turn["expected"])
                 )
             
             print(f"✅ Added {len(testcase['turns'])} new turn(s) to existing testcase {testcase['code']}")
@@ -69,10 +69,10 @@ class Testcase:
             for idx, turn in enumerate(testcase["turns"]):
                 cursor.execute(
                     """
-                    INSERT INTO turns (testcase_id, turn_number, question, expected)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO turns (testcase_id, turn_number, scenario, question, expected)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (testcase_id, idx + 1, turn["question"], turn["expected"])
+                    (testcase_id, idx + 1, turn.get("scenario"), turn["question"], turn["expected"])
                 )
             
             print(f"✅ Created new testcase {testcase['code']} with {len(testcase['turns'])} turn(s)")
@@ -97,7 +97,7 @@ class Testcase:
         for tc in testcases:
             cursor.execute(
                 """
-                SELECT turn_number, question, expected
+                SELECT turn_number, scenario, question, expected
                 FROM turns
                 WHERE testcase_id = ?
                 ORDER BY turn_number
@@ -112,7 +112,7 @@ class Testcase:
                 "name": tc["name"],
                 "group": tc["group_type"],
                 "turns": [
-                    {"question": t["question"], "expected": t["expected"]}
+                    {"scenario": t["scenario"], "question": t["question"], "expected": t["expected"]}
                     for t in turns
                 ],
                 "created_at": tc["created_at"]
@@ -139,7 +139,7 @@ class Testcase:
         
         cursor.execute(
             """
-            SELECT turn_number, question, expected
+            SELECT turn_number, scenario, question, expected
             FROM turns
             WHERE testcase_id = ?
             ORDER BY turn_number
@@ -154,7 +154,7 @@ class Testcase:
             "name": tc["name"],
             "group": tc["group_type"],
             "turns": [
-                {"question": t["question"], "expected": t["expected"]}
+                {"scenario": t["scenario"], "question": t["question"], "expected": t["expected"]}
                 for t in turns
             ],
             "created_at": tc["created_at"]

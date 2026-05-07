@@ -37,47 +37,72 @@ function setUIRunning(running) {
     const btnReset = document.getElementById('btn-reset');
     const btnClearAll = document.getElementById('btn-clear-all');
     const btnTemplate = document.getElementById('btn-template');
-    const btnHistory = document.getElementById('btn-history');
+    const btnImportExcel = document.getElementById('btn-import-excel');
     const btnExport = document.getElementById('btn-export');
     const btnCompare = document.getElementById('btn-compare');
     const fileInput = document.getElementById('file-input');
-    const uploadZone = document.getElementById('upload-zone');
 
     // Form inputs
     const tcName = document.getElementById('tc-name');
     const tcCode = document.getElementById('tc-code');
+    const tcScenario = document.getElementById('tc-scenario');
+    const tcBotUrl = document.getElementById('tc-bot-url');
     const tcQuestion = document.getElementById('tc-question');
     const tcExpected = document.getElementById('tc-expected');
-    const groupTrigger = document.getElementById('group-trigger');
+    const tcRequiredKeywords = document.getElementById('tc-required-keywords');
+    const tcForbiddenKeywords = document.getElementById('tc-forbidden-keywords');
     const criteriaTrigger = document.getElementById('criteria-trigger');
 
-    // Disable/enable tất cả
-    [btnRunAll, btnAdd, btnReset, btnClearAll, btnTemplate, btnHistory, btnExport, btnCompare,
-        fileInput, tcName, tcCode, tcQuestion, tcExpected, groupTrigger, criteriaTrigger].forEach(el => {
-            if (el) {
-                el.disabled = running;
-                console.log(`  ${el.id}: disabled = ${running}`);
+    // Disable/enable tất cả buttons
+    [btnRunAll, btnAdd, btnReset, btnClearAll, btnTemplate, btnImportExcel, btnExport, btnCompare].forEach(el => {
+        if (el) {
+            el.disabled = running;
+            if (running) {
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+            } else {
+                el.style.opacity = '1';
+                el.style.cursor = 'pointer';
             }
-        });
+        }
+    });
 
-    // Upload zone styling
-    if (uploadZone) {
+    // Disable/enable form inputs
+    [tcName, tcCode, tcScenario, tcBotUrl, tcQuestion, tcExpected, tcRequiredKeywords, tcForbiddenKeywords].forEach(el => {
+        if (el) {
+            el.disabled = running;
+            if (running) {
+                el.style.opacity = '0.5';
+                el.style.cursor = 'not-allowed';
+            } else {
+                el.style.opacity = '1';
+                el.style.cursor = 'text';
+            }
+        }
+    });
+
+    // Disable/enable file input
+    if (fileInput) {
+        fileInput.disabled = running;
+    }
+
+    // Disable/enable criteria dropdown
+    if (criteriaTrigger) {
+        criteriaTrigger.disabled = running;
         if (running) {
-            uploadZone.style.opacity = '0.5';
-            uploadZone.style.cursor = 'not-allowed';
-            uploadZone.style.pointerEvents = 'none';
-            console.log('  upload-zone: DISABLED');
+            criteriaTrigger.style.opacity = '0.5';
+            criteriaTrigger.style.cursor = 'not-allowed';
+            criteriaTrigger.style.pointerEvents = 'none';
         } else {
-            uploadZone.style.opacity = '1';
-            uploadZone.style.cursor = 'pointer';
-            uploadZone.style.pointerEvents = 'auto';
-            console.log('  upload-zone: ENABLED');
+            criteriaTrigger.style.opacity = '1';
+            criteriaTrigger.style.cursor = 'pointer';
+            criteriaTrigger.style.pointerEvents = 'auto';
         }
     }
 
     // Update text nút Run All
     if (btnRunAll) {
-        btnRunAll.textContent = running ? '⏳ Đang chạy...' : '▶ Chạy tất cả testcase';
+        btnRunAll.textContent = running ? '⏳ Đang chạy...' : '▶ Chạy tất cả';
     }
 
     // Render lại bảng để disable các nút trong bảng

@@ -1,42 +1,25 @@
-// history.js — Quản lý modal lịch sử đánh giá
+// history.js — Quản lý lịch sử đánh giá (View mode)
 
 import { API_ENDPOINTS, API_KEY } from './config.js';
 
 export function initHistory() {
-    const modal = document.getElementById('history-modal');
-    const btnOpen = document.getElementById('btn-history');
-    const btnClose = document.getElementById('btn-close-history');
+    // History is now a view, not a modal
+    console.log('✅ History initialized (view mode)');
 
-    if (!modal || !btnOpen || !btnClose) {
-        console.error('❌ History elements not found:', {
-            modal: !!modal,
-            btnOpen: !!btnOpen,
-            btnClose: !!btnClose
-        });
-        return;
-    }
-
-    btnOpen.addEventListener('click', () => {
-        openHistoryModal();
-    });
-
-    btnClose.addEventListener('click', () => {
-        modal.classList.remove('show');
-    });
-
-    // Click outside to close
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('show');
-        }
-    });
-
-    console.log('✅ History initialized');
+    // Load history data when needed
+    setTimeout(() => {
+        loadHistoryData();
+    }, 500);
 }
 
-async function openHistoryModal() {
-    const modal = document.getElementById('history-modal');
-    modal.classList.add('show');
+async function loadHistoryData() {
+    const historyStats = document.getElementById('history-stats');
+    const historyList = document.getElementById('history-list');
+
+    if (!historyStats || !historyList) {
+        console.warn('⚠️ History elements not found in DOM yet');
+        return;
+    }
 
     // Load stats and history
     await Promise.all([
@@ -47,6 +30,8 @@ async function openHistoryModal() {
 
 async function loadStats() {
     const statsContainer = document.getElementById('history-stats');
+    if (!statsContainer) return;
+
     statsContainer.innerHTML = '<p style="text-align:center;color:#94a3b8;">Đang tải thống kê...</p>';
 
     try {
@@ -85,6 +70,8 @@ async function loadStats() {
 
 async function loadHistory() {
     const listContainer = document.getElementById('history-list');
+    if (!listContainer) return;
+
     listContainer.innerHTML = '<p style="text-align:center;color:#94a3b8;">Đang tải lịch sử...</p>';
 
     try {
@@ -152,9 +139,9 @@ async function loadHistory() {
                                 </div>
                             ` : ''}
                             ${turn.suggested_response ? `
-                                <div class="turn-row" style="margin-top:12px;padding-top:12px;border-top:1px dashed #e2e8f0;">
-                                    <div class="turn-label" style="color:#16a34a;font-weight:700;">📝 Mẫu đề xuất:</div>
-                                    <div class="turn-value" style="color:#15803d;background:#f0fdf4;padding:12px;border-radius:6px;border-left:3px solid #16a34a;line-height:1.6;">${turn.suggested_response}</div>
+                                <div class="turn-row" style="margin-top:12px;padding-top:12px;border-top:1px dashed #334155;">
+                                    <div class="turn-label" style="color:#10b981;font-weight:700;">📝 Mẫu đề xuất:</div>
+                                    <div class="turn-value" style="color:#10b981;background:#0f172a;padding:12px;border-radius:6px;border-left:3px solid #10b981;line-height:1.6;">${turn.suggested_response}</div>
                                 </div>
                             ` : ''}
                         </div>
@@ -166,7 +153,7 @@ async function loadHistory() {
         // Add click handlers for expand buttons only
         document.querySelectorAll('.history-expand-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event bubbling
+                e.stopPropagation();
                 const index = btn.dataset.runIndex;
                 const item = document.querySelector(`.history-item[data-run-index="${index}"]`);
                 const icon = btn.querySelector('.expand-icon');
@@ -227,23 +214,48 @@ function groupHistoryByRun(history) {
 }
 
 function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now - date;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+    if (!dateStr) return 'N/A';
 
-    if (minutes < 1) return 'Vừa xong';
-    if (minutes < 60) return `${minutes} phút trước`;
-    if (hours < 24) return `${hours} giờ trước`;
-    if (days < 7) return `${days} ngày trước`;
+    try {
+        // Parse date - SQLite returns UTC timestamp
+        const date = new Date(dateStr);
 
-    return date.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            console.error('Invalid date:', dateStr);
+            return dateStr; // Return original string if invalid
+        }
+
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        // Debug log
+        console.log('📅 Date parsing:', {
+            original: dateStr,
+            parsed: date.toISOString(),
+            now: now.toISOString(),
+            diff_ms: diff,
+            minutes: minutes
+        });
+
+        if (minutes < 1) return 'Vừa xong';
+        if (minutes < 60) return `${minutes} phút trước`;
+        if (hours < 24) return `${hours} giờ trước`;
+        if (days < 7) return `${days} ngày trước`;
+
+        // For older dates, show full date/time
+        return date.toLocaleString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        console.error('Error formatting date:', e, dateStr);
+        return dateStr;
+    }
 }

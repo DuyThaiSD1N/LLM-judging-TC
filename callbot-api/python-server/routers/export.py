@@ -34,7 +34,7 @@ async def export_testcases(request: ExportRequest):
         
         # Headers - SAME ORDER AS TEMPLATE
         headers = [
-            "Tên Testcase", "Mã TC", "Câu hỏi từ User", "Câu trả lời kỳ vọng",
+            "Tên Testcase", "Mã TC", "Setup lịch sử", "Câu hỏi từ User", "Yêu cầu kỳ vọng",
             "Từ khóa BẮT BUỘC", "Từ khóa CẤM", "LLM Judge", "Bot URL",
             "Lượt", "Câu trả lời thực tế", "Thời gian (ms)", "Kết quả",
             "Lỗi", "Đề xuất sửa", "Mẫu đề xuất", "Nhận xét giọng điệu"
@@ -75,6 +75,7 @@ async def export_testcases(request: ExportRequest):
             turns = tc.get('turns', [])
             for idx, turn in enumerate(turns):
                 # Lấy tất cả fields, hỗ trợ cả Turn và TurnResult
+                scenario = turn.get('scenario', '') or ''  # NEW
                 required_kw = turn.get('required_keywords', '') or ''
                 forbidden_kw = turn.get('forbidden_keywords', '') or ''
                 actual = turn.get('actual', '') or ''
@@ -88,6 +89,7 @@ async def export_testcases(request: ExportRequest):
                 row = [
                     tc.get('name', ''),
                     tc.get('code', ''),
+                    scenario,  # NEW
                     turn.get('question', ''),
                     turn.get('expected', ''),
                     required_kw,
@@ -106,17 +108,17 @@ async def export_testcases(request: ExportRequest):
                 ws.append(row)
         
         # Column widths - SAME ORDER AS TEMPLATE
-        column_widths = [35, 12, 45, 60, 30, 30, 15, 35, 10, 40, 12, 10, 40, 40, 40, 40]
+        column_widths = [35, 12, 50, 45, 60, 30, 30, 15, 35, 10, 40, 12, 10, 40, 40, 40, 40]
         for idx, width in enumerate(column_widths, 1):
             ws.column_dimensions[chr(64 + idx)].width = width
         
-        # Style verdict cells (PASSED = green, FAILED = red) - Column L (12)
+        # Style verdict cells (PASSED = green, FAILED = red) - Column M (13) - shifted by 1
         passed_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
         passed_font = Font(color="006100", bold=True)
         failed_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
         failed_font = Font(color="9C0006", bold=True)
         
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=12, max_col=12):
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=13, max_col=13):
             cell = row[0]
             if cell.value == "PASSED":
                 cell.fill = passed_fill

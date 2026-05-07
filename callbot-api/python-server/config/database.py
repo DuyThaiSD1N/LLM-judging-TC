@@ -40,6 +40,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             testcase_id INTEGER NOT NULL,
             turn_number INTEGER NOT NULL,
+            scenario TEXT,
             question TEXT NOT NULL,
             expected TEXT NOT NULL,
             FOREIGN KEY (testcase_id) REFERENCES testcases(id) ON DELETE CASCADE
@@ -52,6 +53,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             testcase_id INTEGER NOT NULL,
             turn_number INTEGER NOT NULL,
+            scenario TEXT,
             question TEXT NOT NULL,
             expected TEXT NOT NULL,
             actual TEXT,
@@ -66,7 +68,7 @@ def init_db():
             time_note TEXT,
             criteria TEXT DEFAULT 'standard',
             error TEXT,
-            run_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            run_at DATETIME DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (testcase_id) REFERENCES testcases(id) ON DELETE CASCADE
         )
     """)

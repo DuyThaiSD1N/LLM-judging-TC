@@ -3,6 +3,323 @@ SIMPLIFIED JUDGE PROMPT - Hỗ trợ 5 tiêu chí đánh giá khác nhau
 Chỉ xét: Nội dung + Keywords + Thời gian + Giọng điệu
 """
 
+# ═══════════════════════════════════════════════════════════
+# GROUNDING REQUIREMENT - Bắt buộc trích dẫn để giảm hallucination
+# ═══════════════════════════════════════════════════════════
+
+GROUNDING_REQUIREMENT = """
+═══════════════════════════════════════════════════════════
+YÊU CẦU TRÍCH DẪN (Grounding) - BẮT BUỘC
+═══════════════════════════════════════════════════════════
+
+**NGUYÊN TẮC:** Mọi đánh giá PHẢI dựa trên TRÍCH DẪN CỤ THỂ từ text.
+**MỤC ĐÍCH:** Tránh bịa đặt (hallucination), đảm bảo đánh giá có căn cứ.
+
+## CÁCH TRÍCH DẪN ĐÚNG:
+
+### 1. Với MỖI thông tin đánh giá:
+```
+Thông tin: [Tên thông tin]
+├─ Trong KỲ VỌNG: "[Trích dẫn chính xác]"
+├─ Trong THỰC TẾ: "[Trích dẫn chính xác]" hoặc "KHÔNG CÓ"
+└─ Kết luận: ✓ Có / ✗ Không / ≈ Tương đương
+```
+
+### 2. Ví dụ cụ thể:
+
+**VÍ DỤ 1: Thông tin CÓ (từ đồng nghĩa)**
+```
+Thông tin: Giấy tờ tùy thân
+├─ Trong KỲ VỌNG: "Cần CMND"
+├─ Trong THỰC TẾ: "Cần CCCD"
+└─ Kết luận: ≈ Tương đương (CMND = CCCD)
+```
+
+**VÍ DỤ 2: Thông tin THIẾU**
+```
+Thông tin: Lệ phí
+├─ Trong KỲ VỌNG: "Lệ phí 500.000đ"
+├─ Trong THỰC TẾ: KHÔNG CÓ
+└─ Kết luận: ✗ Thiếu
+```
+
+**VÍ DỤ 3: Thông tin SAI**
+```
+Thông tin: Thời gian xử lý
+├─ Trong KỲ VỌNG: "15 ngày"
+├─ Trong THỰC TẾ: "30 ngày"
+└─ Kết luận: ✗ Sai (15 ≠ 30)
+```
+
+## QUY TẮC BẮT BUỘC:
+
+✅ **PHẢI LÀM:**
+1. Trích dẫn CHÍNH XÁC từ text (copy nguyên văn)
+2. Dùng dấu ngoặc kép "..." cho trích dẫn
+3. Nếu không có → ghi "KHÔNG CÓ", không bịa
+4. So sánh trích dẫn với nhau, không so sánh ý nghĩa chung chung
+
+❌ **KHÔNG ĐƯỢC:**
+1. Paraphrase (diễn giải lại) khi trích dẫn
+2. Tóm tắt thành ý chung
+3. Bịa thông tin không có trong text
+4. Nói "có đề cập" mà không trích dẫn cụ thể
+
+## VÍ DỤ SAI vs ĐÚNG:
+
+**❌ SAI (không trích dẫn):**
+```
+Thông tin: Địa điểm
+Kết luận: Có đề cập đến UBND
+```
+
+**✅ ĐÚNG (có trích dẫn):**
+```
+Thông tin: Địa điểm
+├─ Trong KỲ VỌNG: "Nộp tại UBND phường"
+├─ Trong THỰC TẾ: "Nộp tại Ủy ban nhân dân cấp xã"
+└─ Kết luận: ≈ Tương đương (UBND phường = UBND cấp xã)
+```
+
+**❌ SAI (bịa thông tin):**
+```
+Thông tin: Lệ phí
+Kết luận: Có đề cập đến miễn phí
+(Nhưng thực tế text không nói gì về lệ phí)
+```
+
+**✅ ĐÚNG (thừa nhận không có):**
+```
+Thông tin: Lệ phí
+├─ Trong KỲ VỌNG: "Miễn phí"
+├─ Trong THỰC TẾ: KHÔNG CÓ
+└─ Kết luận: ✗ Thiếu
+```
+"""
+
+# ═══════════════════════════════════════════════════════════
+# FEW-SHOT EXAMPLES - Ví dụ cụ thể để LLM học
+# ═══════════════════════════════════════════════════════════
+
+FEW_SHOT_EXAMPLES = """
+═══════════════════════════════════════════════════════════
+VÍ DỤ ĐÁNH GIÁ (Few-shot Examples)
+═══════════════════════════════════════════════════════════
+
+**VÍ DỤ 1: PASSED - Cách diễn đạt khác nhưng đủ thông tin**
+
+Câu hỏi: "Thủ tục đăng ký kết hôn cần giấy tờ gì?"
+Kỳ vọng: "Cần CMND, sổ hộ khẩu, giấy xác nhận độc thân. Nộp tại UBND phường."
+Thực tế: "Dạ, anh cần chuẩn bị CCCD, giấy đăng ký hộ khẩu, xác nhận chưa kết hôn. Nộp hồ sơ tại Ủy ban nhân dân cấp xã nơi anh cư trú ạ."
+
+Phân tích:
+- Thông tin 1: CMND ≈ CCCD ✓
+- Thông tin 2: Sổ hộ khẩu ≈ Giấy đăng ký hộ khẩu ✓
+- Thông tin 3: Xác nhận độc thân ≈ Xác nhận chưa kết hôn ✓
+- Thông tin 4: UBND phường ≈ UBND cấp xã ✓
+- Giọng điệu: Có xưng hô (anh) ✓
+- Kết luận: 4/4 thông tin (100%) → PASSED
+
+Output:
+{
+  "reasoning": "Kiểm tra 4 thông tin: (1) CMND=CCCD ✓, (2) Sổ hộ khẩu=Giấy đăng ký hộ khẩu ✓, (3) Độc thân=Chưa kết hôn ✓, (4) UBND phường=UBND cấp xã ✓. Đạt 100%. Giọng điệu tốt (có xưng hô).",
+  "verdict": "PASSED",
+  "confidence_level": 0.95,
+  "needs_human_review": false,
+  "confidence_reason": "Rõ ràng đủ thông tin, cách diễn đạt tương đương",
+  "errors": [],
+  "error_desc": "",
+  "suggestion": "",
+  "suggested_response": "",
+  "tone_note": "",
+  "time_verdict": "good",
+  "time_note": ""
+}
+
+---
+
+**VÍ DỤ 2: FAILED - Thiếu thông tin quan trọng**
+
+Câu hỏi: "Thủ tục cấp giấy phép xây dựng cần gì?"
+Kỳ vọng: "Cần đơn xin phép, sổ đỏ, bản vẽ thiết kế, CMND. Lệ phí 500.000đ. Thời gian 15 ngày."
+Thực tế: "Bạn cần nộp đơn xin phép, sổ đỏ và CMND."
+
+Phân tích:
+- Thông tin 1: Đơn xin phép ✓
+- Thông tin 2: Sổ đỏ ✓
+- Thông tin 3: Bản vẽ thiết kế ✗ (THIẾU)
+- Thông tin 4: CMND ✓
+- Thông tin 5: Lệ phí ✗ (THIẾU)
+- Thông tin 6: Thời gian ✗ (THIẾU)
+- Kết luận: 3/6 thông tin (50%) → FAILED
+
+Output:
+{
+  "reasoning": "Kiểm tra 6 thông tin: (1) Đơn ✓, (2) Sổ đỏ ✓, (3) Bản vẽ ✗, (4) CMND ✓, (5) Lệ phí ✗, (6) Thời gian ✗. Chỉ đạt 50% (3/6). Thiếu 3 thông tin quan trọng.",
+  "verdict": "FAILED",
+  "confidence_level": 0.9,
+  "needs_human_review": false,
+  "confidence_reason": "Rõ ràng thiếu nhiều thông tin quan trọng",
+  "errors": [
+    {
+      "description": "Thiếu thông tin về bản vẽ thiết kế - giấy tờ bắt buộc",
+      "severity": "Critical",
+      "quote": "Response chỉ nói 'đơn xin phép, sổ đỏ và CMND'"
+    },
+    {
+      "description": "Thiếu thông tin về lệ phí",
+      "severity": "Major",
+      "quote": "Response không đề cập đến lệ phí"
+    },
+    {
+      "description": "Thiếu thông tin về thời gian xử lý",
+      "severity": "Major",
+      "quote": "Response không đề cập đến thời gian"
+    }
+  ],
+  "error_desc": "Response chưa đầy đủ. User không biết cần chuẩn bị bản vẽ thiết kế, không biết phải trả bao nhiêu tiền lệ phí, và không biết bao lâu sẽ có kết quả.",
+  "suggestion": "Cần bổ sung thông tin về bản vẽ thiết kế trong danh sách giấy tờ, nêu rõ lệ phí 500.000đ, và thông báo thời gian xử lý 15 ngày làm việc.",
+  "suggested_response": "Bạn cần nộp đơn xin phép, sổ đỏ, bản vẽ thiết kế và CMND. Lệ phí là 500.000đ. Thời gian xử lý khoảng 15 ngày làm việc.",
+  "tone_note": "Thiếu xưng hô (anh/chị/em)",
+  "time_verdict": "good",
+  "time_note": ""
+}
+
+---
+
+**VÍ DỤ 3: FAILED - Vi phạm từ khóa CẤM**
+
+Câu hỏi: "Thủ tục đăng ký xe máy cần gì?"
+Kỳ vọng: "Cần hóa đơn mua xe, CMND, giấy chứng nhận chất lượng."
+Từ khóa CẤM: "bảo hiểm, đăng kiểm"
+Thực tế: "Cần hóa đơn, CMND, giấy chất lượng, và bảo hiểm xe."
+
+Phân tích:
+- Thông tin đủ: 3/3 ✓
+- Từ khóa CẤM: "bảo hiểm" xuất hiện ✗
+- Kết luận: Vi phạm từ khóa cấm → FAILED
+
+Output:
+{
+  "reasoning": "Kiểm tra thông tin: đủ 3/3. NHƯNG response chứa từ khóa CẤM 'bảo hiểm'. Vi phạm nghiêm trọng → FAILED.",
+  "verdict": "FAILED",
+  "confidence_level": 1.0,
+  "needs_human_review": false,
+  "confidence_reason": "Vi phạm rõ ràng từ khóa cấm",
+  "errors": [
+    {
+      "description": "Response chứa từ khóa CẤM: 'bảo hiểm'",
+      "severity": "Critical",
+      "quote": "và bảo hiểm xe"
+    }
+  ],
+  "error_desc": "Response vi phạm từ khóa CẤM: chứa từ 'bảo hiểm'. Từ khóa này không được phép xuất hiện trong response.",
+  "suggestion": "Loại bỏ hoàn toàn từ 'bảo hiểm' khỏi response. Chỉ liệt kê các giấy tờ theo đúng quy định.",
+  "suggested_response": "Cần hóa đơn mua xe, CMND, và giấy chứng nhận chất lượng.",
+  "tone_note": "",
+  "time_verdict": "good",
+  "time_note": ""
+}
+
+---
+
+**VÍ DỤ 4: PASSED - Response dài nhưng đủ thông tin**
+
+Câu hỏi: "Lệ phí đăng ký kết hôn là bao nhiêu?"
+Kỳ vọng: "Miễn phí"
+Thực tế: "Dạ, theo quy định hiện hành, thủ tục đăng ký kết hôn được miễn phí hoàn toàn, anh chị không phải đóng bất kỳ khoản phí nào ạ."
+
+Phân tích:
+- Thông tin cốt lõi: Miễn phí ✓
+- Thông tin bổ sung: "theo quy định hiện hành", "không phải đóng bất kỳ khoản phí nào" (không bắt buộc nhưng hữu ích)
+- Giọng điệu: Tốt (có xưng hô)
+- Kết luận: Đủ thông tin cốt lõi → PASSED
+
+Output:
+{
+  "reasoning": "Thông tin cốt lõi 'miễn phí' có trong response ('miễn phí hoàn toàn', 'không phải đóng bất kỳ khoản phí nào'). Đạt 100%. Response dài hơn kỳ vọng nhưng không sai, chỉ giải thích thêm.",
+  "verdict": "PASSED",
+  "confidence_level": 0.95,
+  "needs_human_review": false,
+  "confidence_reason": "Thông tin đúng và đầy đủ, response dài nhưng không ảnh hưởng",
+  "errors": [],
+  "error_desc": "",
+  "suggestion": "",
+  "suggested_response": "",
+  "tone_note": "",
+  "time_verdict": "good",
+  "time_note": ""
+}
+
+---
+
+**VÍ DỤ 5: FAILED - Response rỗng**
+
+Câu hỏi: "Thủ tục đổi CMND sang CCCD cần gì?"
+Kỳ vọng: "Cần CMND cũ, ảnh 4x6, hộ khẩu."
+Thực tế: ""
+
+Phân tích:
+- Response rỗng → FAILED
+
+Output:
+{
+  "reasoning": "Response rỗng, không có nội dung. Không thể đánh giá thông tin. → FAILED.",
+  "verdict": "FAILED",
+  "confidence_level": 1.0,
+  "needs_human_review": false,
+  "confidence_reason": "Response rỗng, rõ ràng FAILED",
+  "errors": [
+    {
+      "description": "Response trống, không có nội dung trả lời",
+      "severity": "Critical",
+      "quote": ""
+    }
+  ],
+  "error_desc": "Response trống hoàn toàn, không có bất kỳ nội dung nào. User không nhận được thông tin gì.",
+  "suggestion": "Cần trả lời đầy đủ theo kỳ vọng: liệt kê các giấy tờ cần thiết.",
+  "suggested_response": "Cần CMND cũ, ảnh 4x6, và sổ hộ khẩu.",
+  "tone_note": "",
+  "time_verdict": "good",
+  "time_note": ""
+}
+
+═══════════════════════════════════════════════════════════
+HỌC TỪ CÁC VÍ DỤ TRÊN
+═══════════════════════════════════════════════════════════
+
+**BÀI HỌC QUAN TRỌNG:**
+
+1. **Cách diễn đạt khác nhau = OK** (VD1)
+   - CMND = CCCD = Căn cước
+   - Sổ hộ khẩu = Giấy đăng ký hộ khẩu
+   - Độc thân = Chưa kết hôn
+   → Chỉ cần Ý NGHĨA giống nhau
+
+2. **Thiếu thông tin = FAILED** (VD2)
+   - Phải đếm từng thông tin
+   - Tính % = (có / tổng) × 100
+   - So sánh với threshold
+
+3. **Vi phạm keywords = FAILED nghiêm trọng** (VD3)
+   - Dù thông tin đủ
+   - Chỉ cần 1 từ khóa cấm → FAILED
+
+4. **Response dài = OK nếu đúng** (VD4)
+   - Không bắt buộc ngắn gọn
+   - Thông tin bổ sung hữu ích = không trừ điểm
+
+5. **Response rỗng = FAILED** (VD5)
+   - Không cần phân tích gì thêm
+   - Suggested_response = copy kỳ vọng
+
+**CÁCH ÁP DỤNG:**
+- Đọc kỹ 5 ví dụ trên
+- Áp dụng cùng logic cho testcase mới
+- Nhất quán về cách đánh giá
+- Nhất quán về format output
+"""
+
 # Base system message (chung cho tất cả criteria)
 BASE_SYSTEM_MESSAGE = """Bạn là chuyên gia đánh giá chatbot response.
 
@@ -20,15 +337,15 @@ NHIỆM VỤ: So sánh câu trả lời THỰC TẾ với KỲ VỌNG và đưa 
 PHƯƠNG PHÁP ĐÁNH GIÁ (STEP-BY-STEP)
 ═══════════════════════════════════════════════════════════
 
-BƯỚC 1: PHÂN TÍCH KỲ VỌNG
-- Đọc kỹ câu trả lời KỲ VỌNG
-- Liệt kê TẤT CẢ thông tin quan trọng (từng điểm riêng biệt)
-- Xác định thông tin nào BẮT BUỘC, thông tin nào PHỤ
+BƯỚC 1: PHÂN TÍCH YÊU CẦU KỲ VỌNG
+- Đọc kỹ YÊU CẦU KỲ VỌNG (không phải câu trả lời cụ thể)
+- Liệt kê TẤT CẢ yêu cầu quan trọng (từng điểm riêng biệt)
+- Xác định yêu cầu nào BẮT BUỘC, yêu cầu nào PHỤ
 
 BƯỚC 2: PHÂN TÍCH THỰC TẾ
 - Đọc kỹ câu trả lời THỰC TẾ
-- Kiểm tra TỪNG thông tin trong kỳ vọng có xuất hiện không
-- Ghi nhận: Thông tin nào ĐÃ CÓ ✓, thông tin nào THIẾU ✗
+- Kiểm tra TỪNG yêu cầu trong kỳ vọng có được đáp ứng không
+- Ghi nhận: Yêu cầu nào ĐÃ ĐÁP ỨNG ✓, yêu cầu nào CHƯA ĐÁP ỨNG ✗
 
 BƯỚC 3: KIỂM TRA KEYWORDS (nếu có)
 - Từ khóa BẮT BUỘC: Phải xuất hiện trong response
@@ -41,12 +358,19 @@ BƯỚC 4: ĐÁNH GIÁ CHẤT LƯỢNG
 - Quyết định: PASSED hay FAILED
 
 BƯỚC 5: PHÂN TÍCH LỖI CHI TIẾT (nếu FAILED)
-Với MỖI lỗi, phải trả lời 5 câu hỏi:
-1. LỖI GÌ? (thiếu thông tin / sai thông tin / không rõ ràng / không liên quan)
-2. THIẾU Ở ĐÂU? (đầu / giữa / cuối response, hoặc thiếu hoàn toàn)
-3. TÁC ĐỘNG GÌ? (user không hiểu / không làm được / hiểu sai / mất thời gian)
-4. MỨC ĐỘ? (Critical: không dùng được / Major: khó khăn / Minor: chưa tối ưu)
-5. SỬA NHƯ THẾ NÀO? (bổ sung gì, ở vị trí nào, với format ra sao)
+Mô tả lỗi theo cách TỰ NHIÊN, tập trung vào:
+- Thông tin nào còn thiếu hoặc sai
+- Tác động đến user như thế nào (user không biết gì, không hiểu gì)
+- Mức độ nghiêm trọng (Critical/Major/Minor)
+
+⚠️ TUYỆT ĐỐI KHÔNG liệt kê dạng:
+- "Thiếu X/Y thông tin"
+- "Response thiếu 3/5 điểm: (1)..., (2)..., (3)..."
+- Bất kỳ format đếm số nào
+
+✅ Thay vào đó, viết tự nhiên:
+- "Response chưa đầy đủ. User không biết [thông tin A], không biết [thông tin B] và không biết [thông tin C]."
+- "Thiếu thông tin về [A], [B] và [C], khiến user không thể hiểu rõ quy trình."
 
 ═══════════════════════════════════════════════════════════
 XỬ LÝ EDGE CASES
@@ -127,6 +451,27 @@ NẾU verdict = "FAILED":
 - KHÔNG ghi khen ngợi
 - Phải CỤ THỂ, có VÍ DỤ, chỉ rõ VỊ TRÍ
 - Mỗi lỗi phải trả lời đủ 5 câu hỏi: Gì? Đâu? Tác động? Mức độ? Sửa thế nào?
+
+═══════════════════════════════════════════════════════════
+ĐÁNH GIÁ GIỌNG ĐIỆU - XƯNG HÔ
+═══════════════════════════════════════════════════════════
+
+**QUAN TRỌNG:** Chỉ đánh giá XƯNG HÔ, KHÔNG đánh giá dạ/ạ
+
+**Xưng hô hợp lệ:**
+- anh/chị/em (phổ biến nhất)
+- quý khách (trang trọng)
+- bạn (chấp nhận được nếu có trong context)
+
+**Cách kiểm tra:**
+1. Tìm xem response có chứa từ xưng hô không
+2. Nếu CÓ → tone_note = "" (không ghi gì)
+3. Nếu KHÔNG → tone_note = "Thiếu xưng hô (anh/chị/em)"
+
+**Lưu ý:**
+- Đa phần response đều có dạ/ạ rồi → KHÔNG cần đánh giá dạ/ạ
+- CHỈ tập trung vào xưng hô
+- Xưng hô sai (VD: dùng "mày/tao") → tone_note = "Xưng hô không phù hợp"
 """
 
 # Criteria-specific rules
@@ -186,8 +531,8 @@ NGUYÊN TẮC ĐÁNH GIÁ:
 
 4. GIỌNG ĐIỆU:
    - PHẢI có xưng hô (anh/chị/em/quý khách)
-   - PHẢI có dạ/ạ/vâng
-   - Thiếu xưng hô hoặc dạ/ạ → FAILED
+   - PHẢI lịch sự, tự nhiên
+   - Thiếu xưng hô → FAILED
    - Thô lỗ → FAILED
 
 CÁCH TỰ ĐÁNH GIÁ:
@@ -195,7 +540,7 @@ CÁCH TỰ ĐÁNH GIÁ:
 - Đếm có bao nhiêu thông tin trong response
 - Tính % = (có / tổng) × 100
 - Kiểm tra thời gian, giọng điệu
-- Nếu ≥95% + ≤3s + có dạ/ạ + không vi phạm keywords → PASSED
+- Nếu ≥95% + ≤3s + có xưng hô + không vi phạm keywords → PASSED
 - BẤT KỲ lỗi nhỏ nào cũng phải ghi nhận chi tiết
 """,
     
@@ -315,7 +660,7 @@ def create_simple_judge_prompt(
     
     Args:
         question: Câu hỏi
-        expected: Câu trả lời kỳ vọng
+        expected: YÊU CẦU KỲ VỌNG (không phải câu trả lời cụ thể)
         actual: Câu trả lời thực tế
         time_label: Thời gian (VD: "2000ms (Nhanh)")
         criteria: Tiêu chí (standard/strict/speed-focused/content-only/ux-focused)
@@ -323,6 +668,18 @@ def create_simple_judge_prompt(
         forbidden_keywords: Từ khóa cấm
         inject_knowledge: Có inject knowledge base không (default: True)
     """
+    
+    # Import improvements
+    try:
+        from prompt_improvements import (
+            get_error_analysis_template,
+            get_consistency_check
+        )
+        error_analysis = get_error_analysis_template()
+        consistency_check = get_consistency_check()
+    except ImportError:
+        error_analysis = ""
+        consistency_check = ""
     
     # Get criteria-specific rules
     criteria_rule = CRITERIA_RULES.get(criteria, CRITERIA_RULES["standard"])
@@ -360,6 +717,12 @@ KNOWLEDGE BASE - THÔNG TIN THAM KHẢO
     
     prompt = f"""{BASE_SYSTEM_MESSAGE}
 
+{GROUNDING_REQUIREMENT}
+
+{FEW_SHOT_EXAMPLES}
+
+{error_analysis}
+
 {criteria_rule}
 {knowledge_section}
 ═══════════════════════════════════════════════════════════
@@ -368,7 +731,7 @@ DỮ LIỆU CẦN ĐÁNH GIÁ
 
 **Câu hỏi:** {question}
 
-**Kỳ vọng:** {expected}
+**Yêu cầu kỳ vọng:** {expected}
 {keywords_section}
 
 **Thực tế:** {actual}
@@ -401,17 +764,21 @@ Trả về JSON với các trường:
 5. **confidence_reason**: Lý do về độ tự tin
 
 6. **errors**: Array các lỗi (nếu có), mỗi lỗi có:
-   - description: Mô tả lỗi (trả lời 5 câu hỏi: Gì? Đâu? Tác động? Mức độ? Sửa thế nào?)
+   - description: Mô tả lỗi một cách tự nhiên, chi tiết
    - severity: "Critical" / "Major" / "Minor"
    - quote: Trích dẫn phần sai (nếu có)
 
-7. **error_desc**: Tóm tắt tất cả lỗi (nếu FAILED)
+7. **error_desc**: Nhận xét lỗi tự nhiên (nếu FAILED)
    - Nếu PASSED → ""
-   - Nếu FAILED → Mô tả chi tiết từng lỗi
+   - Nếu FAILED → Mô tả lỗi theo cách tự nhiên, KHÔNG liệt kê dạng "thiếu X/Y thông tin"
+   - Ví dụ ĐÚNG: "Response chưa đầy đủ. User không biết quy trình thực hiện, không biết kết quả sẽ được công bố như thế nào và không biết có những hình thức rà soát nào."
+   - Ví dụ SAI: "Response thiếu 3/5 thông tin: (1) Quy trình, (2) Kết quả công bố, (3) Hình thức"
 
-8. **suggestion**: Hướng dẫn sửa (nếu FAILED)
+8. **suggestion**: Gợi ý cải thiện (nếu FAILED)
    - Nếu PASSED → ""
-   - Nếu FAILED → Hướng dẫn cụ thể từng bước
+   - Nếu FAILED → Đưa ra gợi ý cải thiện cụ thể, tự nhiên
+   - KHÔNG liệt kê dạng "Bước 1, Bước 2, Bước 3"
+   - Ví dụ: "Cần bổ sung thông tin về quy trình thực hiện, cách thức công bố kết quả và các hình thức rà soát có sẵn."
 
 9. **suggested_response**: Mẫu response đã sửa (nếu FAILED)
    - Nếu PASSED → ""

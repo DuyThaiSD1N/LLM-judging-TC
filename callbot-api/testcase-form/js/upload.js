@@ -14,27 +14,15 @@ export function initUpload() {
     }
     isInitialized = true;
 
-    const zone = document.getElementById('upload-zone');
     const fileInput = document.getElementById('file-input');
 
-    if (!zone || !fileInput) {
-        console.error('❌ Upload elements not found');
+    if (!fileInput) {
+        console.error('❌ Upload file input not found');
         return;
     }
 
-    zone.addEventListener('click', () => fileInput.click());
-
-    zone.addEventListener('dragover', e => {
-        e.preventDefault();
-        zone.classList.add('drag-over');
-    });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => {
-        e.preventDefault();
-        zone.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file) handleFile(file);
-    });
+    // No drag-drop zone in new UI, just file input
+    console.log('✅ Upload initialized (file input only)');
 
     fileInput.addEventListener('change', () => {
         if (fileInput.files[0]) handleFile(fileInput.files[0]);
