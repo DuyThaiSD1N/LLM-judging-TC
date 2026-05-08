@@ -1,10 +1,16 @@
-// comparison.js — Xử lý so sánh testcase (DISABLED)
+// comparison.js — Xử lý so sánh testcase
 
 import { showToast } from './toast.js';
+import { getSelectedTestcases } from './table-v2.js';
+import { API_ENDPOINTS, getAuthHeaders } from './config.js';
 
 export function initComparison() {
-    // Comparison feature disabled - button removed from UI
-    console.log('⚠️ Comparison feature disabled');
+    console.log('✅ Comparison feature initialized');
+
+    const btnCompare = document.getElementById('btn-compare');
+    if (btnCompare) {
+        btnCompare.addEventListener('click', handleCompare);
+    }
 }
 
 async function handleCompare() {
@@ -76,22 +82,22 @@ function showComparisonModal(testcases, mode) {
     modal.className = 'modal show';
 
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 95%; max-height: 95vh;">
+        <div class="modal-content" style="max-width: 98%; max-height: 95vh; width: 98%;">
             <div class="modal-header">
-                <h2>⚖️ So sánh ${testcases.length} Testcase</h2>
+                <h2>⚖️ Kết quả so sánh ${testcases.length} Testcase</h2>
                 <button id="btn-close-comparison" class="btn-close">✕</button>
             </div>
             <div class="modal-body">
-                <div class="comparison-tabs">
-                    <button class="comparison-tab active" data-tab="table">📊 Bảng so sánh</button>
-                    <button class="comparison-tab" data-tab="analysis">🤖 Phân tích LLM</button>
-                </div>
-                
-                <div class="comparison-content">
-                    <div class="comparison-tab-content active" data-content="table">
+                <div class="comparison-section">
+                    <h3 class="section-title-sm">📊 Bảng dữ liệu so sánh</h3>
+                    <div class="comparison-table-wrap">
                         ${renderComparisonTable(testcases)}
                     </div>
-                    <div class="comparison-tab-content" data-content="analysis">
+                </div>
+                
+                <div class="comparison-section" style="margin-top: 32px; border-top: 1px solid #334155; padding-top: 24px;">
+                    <h3 class="section-title-sm">🤖 Phân tích chuyên sâu từ LLM Judge</h3>
+                    <div id="llm-analysis-container">
                         <div class="llm-analysis-loading">
                             <div class="spinner-cell"></div>
                             <p>Đang phân tích với LLM...</p>
@@ -249,7 +255,7 @@ function renderMetrics(testcases) {
 }
 
 async function analyzWithLLM(testcases, mode) {
-    const analysisContent = document.querySelector('[data-content="analysis"]');
+    const analysisContent = document.getElementById('llm-analysis-container');
 
     try {
         // Prepare request data
@@ -272,9 +278,9 @@ async function analyzWithLLM(testcases, mode) {
         };
 
         // Call API
-        const response = await fetch('/api/compare', {
+        const response = await fetch(API_ENDPOINTS.COMPARE, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(requestData)
         });
 
@@ -531,26 +537,7 @@ function setupModalListeners(modal, testcases, mode) {
         }
     });
 
-    // Tab switching
-    const tabs = modal.querySelectorAll('.comparison-tab');
-    const contents = modal.querySelectorAll('.comparison-tab-content');
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const targetTab = tab.dataset.tab;
-
-            // Update active tab
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
-            // Update active content
-            contents.forEach(c => c.classList.remove('active'));
-            const targetContent = modal.querySelector(`[data-content="${targetTab}"]`);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
-        });
-    });
+    // Removed tab switching logic as tabs are removed
 }
 
 

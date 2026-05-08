@@ -8,10 +8,14 @@ console.log('✅ table.js loaded - VERSION 2024-05-06-v7 (FIXED reasoning object
 console.log('🔍 Action buttons: ▶ Run, ✏️ Edit, 🗑 Delete ONLY');
 
 let testcases = [];
+let selectedIndices = new Set();
 let _runSingleFn = null;
 
 export function setRunSingleFn(fn) { _runSingleFn = fn; }
 export function getTestcases() { return testcases; }
+export function getSelectedTestcases() {
+  return Array.from(selectedIndices).map(idx => testcases[idx]);
+}
 
 export function addTestcase(tc) {
   console.log('🔍 addTestcase - Input tc:', tc);
@@ -33,7 +37,9 @@ export function deleteTestcase(idx) {
 
 export function clearAllTestcases() {
   testcases = [];
+  selectedIndices.clear();
   renderEval();
+  updateSelectionUI();
 
   // Force enable upload zone (in case it was disabled during run)
   const fileInput = document.getElementById('file-input');
@@ -57,6 +63,19 @@ export function updateTestcase(idx, updatedTc) {
   if (!testcases[idx]) return;
   testcases[idx] = initRow(updatedTc);
   renderEval();
+}
+
+export function updateSelectionUI() {
+  const btnCompare = document.getElementById('btn-compare');
+  if (!btnCompare) return;
+
+  const count = selectedIndices.size;
+  if (count >= 2) {
+    btnCompare.style.display = 'inline-flex';
+    btnCompare.textContent = `⚖️ So sánh (${count})`;
+  } else {
+    btnCompare.style.display = 'none';
+  }
 }
 
 function editTestcase(idx) {
@@ -202,6 +221,9 @@ export function renderEval() {
       const rowClass = isFirst ? 'tc-first-row' : 'tc-sub-row';
 
       const tcCells = isFirst ? `
+        <td class="col-check" rowspan="${turnCount}">
+          <input type="checkbox" class="tc-checkbox" data-idx="${i}" ${selectedIndices.has(i) ? 'checked' : ''} />
+        </td>
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
         <td class="col-executor" rowspan="${turnCount}">${tc.executor
@@ -249,6 +271,7 @@ export function renderEval() {
       <table class="testcase-table">
         <thead>
           <tr>
+            <th><input type="checkbox" id="check-all" /></th>
             <th>#</th>
             <th>Mã TC</th>
             <th>Người thực hiện</th>
@@ -282,6 +305,30 @@ export function renderEval() {
 
   container.querySelectorAll('.btn-edit').forEach(btn =>
     btn.addEventListener('click', () => editTestcase(Number(btn.dataset.idx))));
+
+  // Checkbox listeners
+  container.querySelectorAll('.tc-checkbox').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const idx = Number(e.target.dataset.idx);
+      if (e.target.checked) selectedIndices.add(idx);
+      else selectedIndices.delete(idx);
+      updateSelectionUI();
+    });
+  });
+
+  const checkAll = container.querySelector('#check-all');
+  if (checkAll) {
+    checkAll.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      container.querySelectorAll('.tc-checkbox').forEach(cb => {
+        cb.checked = isChecked;
+        const idx = Number(cb.dataset.idx);
+        if (isChecked) selectedIndices.add(idx);
+        else selectedIndices.delete(idx);
+      });
+      updateSelectionUI();
+    });
+  }
 
   // Disable buttons if running
   const running = getIsRunning();
