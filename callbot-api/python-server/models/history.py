@@ -52,10 +52,10 @@ class History:
             for idx, turn in enumerate(turn_results):
                 cursor.execute(
                     """
-                    INSERT INTO turns (testcase_id, turn_number, question, expected)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO turns (testcase_id, turn_number, scenario, question, expected)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (testcase_id, idx + 1, turn["question"], turn["expected"])
+                    (testcase_id, idx + 1, turn.get("scenario"), turn["question"], turn["expected"])
                 )
             
             print(f"✅ Created testcase {testcase_code} in database")

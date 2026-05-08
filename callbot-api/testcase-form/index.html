@@ -36,10 +36,6 @@
                 </span>
                 <span class="nav-text">History</span>
             </a>
-            <a href="#" class="sidebar-nav-item" data-view="export">
-                <span class="nav-icon">⬇</span>
-                <span class="nav-text">Export</span>
-            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -54,12 +50,6 @@
         <header class="main-header">
             <div class="header-left">
                 <h1 class="header-title" id="view-title">Testcases</h1>
-            </div>
-            <div class="header-right">
-                <button class="btn-icon" id="btn-system-loading" title="System Loading">
-                    <span class="status-dot status-connected"></span>
-                    System Loading
-                </button>
             </div>
         </header>
 
@@ -181,7 +171,6 @@
                     <div class="table-section-header">
                         <h2 class="section-title-lg">Danh sách Testcase</h2>
                         <div style="display: flex; gap: 10px;">
-                            <button id="btn-compare" class="btn btn-compare" disabled>⚖️ So sánh</button>
                             <button id="btn-clear-all" class="btn btn-danger">🗑 Xóa tất cả</button>
                             <button id="btn-run-all" class="btn btn-run">▶ Chạy tất cả</button>
                         </div>
@@ -232,13 +221,51 @@
             <!-- ═══════════════════════════════════════════════════════════ -->
             <!-- VIEW: HISTORY -->
             <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- VIEW: HISTORY -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
             <div id="view-history" class="view-content">
                 <div class="panel">
                     <div class="panel-header">
                         <h3 class="panel-title">📊 Lịch sử đánh giá</h3>
                     </div>
                     <div class="panel-body">
+                        <!-- Search and Filter -->
+                        <div class="history-filters">
+                            <!-- Row 1: Search + Refresh -->
+                            <div class="filter-row filter-row-main">
+                                <input type="text" id="history-search" class="input input-search"
+                                    placeholder="🔍 Tìm theo tên hoặc mã testcase...">
+                                <button id="btn-refresh-history" class="btn btn-secondary btn-icon-only"
+                                    title="Làm mới dữ liệu">
+                                    🔄
+                                </button>
+                            </div>
+
+                            <!-- Row 2: Date/Time Filters + Actions -->
+                            <div class="filter-row filter-row-compact">
+                                <div class="filter-group-inline">
+                                    <label class="filter-label-inline">Từ:</label>
+                                    <input type="date" id="history-date-from" class="input input-compact">
+                                    <input type="time" id="history-time-from" class="input input-compact" step="60">
+                                </div>
+                                <div class="filter-group-inline">
+                                    <label class="filter-label-inline">Đến:</label>
+                                    <input type="date" id="history-date-to" class="input input-compact">
+                                    <input type="time" id="history-time-to" class="input input-compact" step="60">
+                                </div>
+                                <div class="filter-actions">
+                                    <button id="btn-clear-filters" class="btn btn-ghost btn-sm">Xóa lọc</button>
+                                    <button id="btn-export-selected" class="btn btn-primary btn-sm" disabled>📥
+                                        Export</button>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Stats -->
                         <div id="history-stats" class="history-stats"></div>
+
+                        <!-- History List -->
                         <div id="history-list" class="history-list"></div>
                     </div>
                 </div>

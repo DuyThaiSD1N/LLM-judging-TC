@@ -51,6 +51,7 @@ class Testcase:
                     """,
                     (testcase_id, next_turn_number + idx, turn.get("scenario"), turn["question"], turn["expected"])
                 )
+                print(f"✅ Added turn {next_turn_number + idx} with scenario: {turn.get('scenario')}")
             
             print(f"✅ Added {len(testcase['turns'])} new turn(s) to existing testcase {testcase['code']}")
         else:
@@ -74,6 +75,7 @@ class Testcase:
                     """,
                     (testcase_id, idx + 1, turn.get("scenario"), turn["question"], turn["expected"])
                 )
+                print(f"✅ Inserted turn {idx + 1} with scenario: {turn.get('scenario')}")
             
             print(f"✅ Created new testcase {testcase['code']} with {len(testcase['turns'])} turn(s)")
         

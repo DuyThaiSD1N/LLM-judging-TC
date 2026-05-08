@@ -42,6 +42,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
     last_code = None
     last_criteria = None
     last_bot_url = None
+    last_scenario = None  # NEW: Track scenario for merged cells
     
     for row_idx, row in enumerate(data_rows):
         # Extract values from cells
@@ -65,6 +66,11 @@ def parse_excel_with_merged_cells(file_content: bytes):
             code = last_code
         else:
             last_code = code
+            
+        if scenario is None or str(scenario).strip() == "":
+            scenario = last_scenario  # NEW: Inherit scenario from previous row
+        else:
+            last_scenario = scenario  # NEW: Update last_scenario
             
         if criteria is None or str(criteria).strip() == "":
             criteria = last_criteria

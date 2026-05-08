@@ -1,15 +1,154 @@
-// history.js — Quản lý lịch sử đánh giá (View mode)
+// history.js — Quản lý lịch sử đánh giá (View mode) với tìm kiếm và export
 
 import { API_ENDPOINTS, API_KEY } from './config.js';
+
+// Selected history items for export
+let selectedHistoryItems = new Set();
 
 export function initHistory() {
     // History is now a view, not a modal
     console.log('✅ History initialized (view mode)');
 
+    // Setup search and filters
+    setupFilters();
+
     // Load history data when needed
     setTimeout(() => {
         loadHistoryData();
     }, 500);
+}
+
+function setupFilters() {
+    const searchInput = document.getElementById('history-search');
+    const dateFromInput = document.getElementById('history-date-from');
+    const timeFromInput = document.getElementById('history-time-from');
+    const dateToInput = document.getElementById('history-date-to');
+    const timeToInput = document.getElementById('history-time-to');
+    const btnClearFilters = document.getElementById('btn-clear-filters');
+    const btnExportSelected = document.getElementById('btn-export-selected');
+    const btnRefreshHistory = document.getElementById('btn-refresh-history');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            applyFilters();
+        });
+    }
+
+    if (dateFromInput) {
+        dateFromInput.addEventListener('change', () => {
+            applyFilters();
+        });
+    }
+
+    if (timeFromInput) {
+        timeFromInput.addEventListener('change', () => {
+            applyFilters();
+        });
+    }
+
+    if (dateToInput) {
+        dateToInput.addEventListener('change', () => {
+            applyFilters();
+        });
+    }
+
+    if (timeToInput) {
+        timeToInput.addEventListener('change', () => {
+            applyFilters();
+        });
+    }
+
+    if (btnClearFilters) {
+        btnClearFilters.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (dateFromInput) dateFromInput.value = '';
+            if (timeFromInput) timeFromInput.value = '';
+            if (dateToInput) dateToInput.value = '';
+            if (timeToInput) timeToInput.value = '';
+            applyFilters();
+        });
+    }
+
+    if (btnExportSelected) {
+        btnExportSelected.addEventListener('click', () => {
+            exportSelectedHistory();
+        });
+    }
+
+    if (btnRefreshHistory) {
+        btnRefreshHistory.addEventListener('click', () => {
+            console.log('🔄 Manual refresh triggered');
+            loadHistoryData();
+        });
+    }
+}
+
+function applyFilters() {
+    const searchInput = document.getElementById('history-search');
+    const dateFromInput = document.getElementById('history-date-from');
+    const timeFromInput = document.getElementById('history-time-from');
+    const dateToInput = document.getElementById('history-date-to');
+    const timeToInput = document.getElementById('history-time-to');
+
+    const searchTerm = searchInput?.value.toLowerCase() || '';
+
+    // Build datetime from date + time
+    let dateTimeFrom = null;
+    if (dateFromInput?.value) {
+        const timeFrom = timeFromInput?.value || '00:00';
+        dateTimeFrom = new Date(`${dateFromInput.value}T${timeFrom}`);
+    }
+
+    let dateTimeTo = null;
+    if (dateToInput?.value) {
+        const timeTo = timeToInput?.value || '23:59';
+        dateTimeTo = new Date(`${dateToInput.value}T${timeTo}`);
+    }
+
+    const historyItems = document.querySelectorAll('.history-item');
+
+    historyItems.forEach(item => {
+        const name = item.dataset.testcaseName?.toLowerCase() || '';
+        const code = item.dataset.testcaseCode?.toLowerCase() || '';
+        const runAt = item.dataset.runAt ? new Date(item.dataset.runAt) : null;
+
+        let show = true;
+
+        // Search filter
+        if (searchTerm && !name.includes(searchTerm) && !code.includes(searchTerm)) {
+            show = false;
+        }
+
+        // DateTime range filter
+        if (dateTimeFrom && runAt && runAt < dateTimeFrom) {
+            show = false;
+        }
+        if (dateTimeTo && runAt && runAt > dateTimeTo) {
+            show = false;
+        }
+
+        item.style.display = show ? 'block' : 'none';
+    });
+
+    updateExportButtonState();
+}
+
+export function getSelectedHistoryItems() {
+    return Array.from(selectedHistoryItems);
+}
+
+function updateExportButtonState() {
+    const btnExportSelected = document.getElementById('btn-export-selected');
+    if (btnExportSelected) {
+        const count = selectedHistoryItems.size;
+        if (count > 0) {
+            btnExportSelected.disabled = false;
+            btnExportSelected.textContent = `📥 Export đã chọn (${count})`;
+        } else {
+            btnExportSelected.disabled = true;
+            btnExportSelected.textContent = '📥 Export đã chọn';
+        }
+    }
 }
 
 async function loadHistoryData() {
@@ -90,8 +229,16 @@ async function loadHistory() {
         const grouped = groupHistoryByRun(history);
 
         listContainer.innerHTML = grouped.map((run, index) => `
-            <div class="history-item" data-run-index="${index}">
+            <div class="history-item" 
+                 data-run-index="${index}"
+                 data-testcase-name="${run.testcase_name}"
+                 data-testcase-code="${run.testcase_code}"
+                 data-run-at="${run.run_at}">
                 <div class="history-header">
+                    <input type="checkbox" 
+                           class="history-checkbox" 
+                           data-run-index="${index}"
+                           title="Chọn để export">
                     <button class="history-expand-btn" data-run-index="${index}">
                         <span class="expand-icon">▶</span>
                     </button>
@@ -110,6 +257,12 @@ async function loadHistory() {
                     ${run.details.map((turn, i) => `
                         <div class="turn-detail ${turn.verdict === 'PASSED' ? 'pass' : 'fail'}">
                             <div class="turn-header">Lượt ${i + 1} - ${turn.verdict || 'N/A'}</div>
+                            ${turn.scenario ? `
+                                <div class="turn-row">
+                                    <div class="turn-label">Setup lịch sử:</div>
+                                    <div class="turn-value scenario-value">${turn.scenario}</div>
+                                </div>
+                            ` : ''}
                             <div class="turn-row">
                                 <div class="turn-label">Câu hỏi:</div>
                                 <div class="turn-value">${turn.question}</div>
@@ -149,6 +302,22 @@ async function loadHistory() {
                 </div>
             </div>
         `).join('');
+
+        // Store grouped data for export
+        window.historyGroupedData = grouped;
+
+        // Add click handlers for checkboxes
+        document.querySelectorAll('.history-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const index = parseInt(e.target.dataset.runIndex);
+                if (e.target.checked) {
+                    selectedHistoryItems.add(index);
+                } else {
+                    selectedHistoryItems.delete(index);
+                }
+                updateExportButtonState();
+            });
+        });
 
         // Add click handlers for expand buttons only
         document.querySelectorAll('.history-expand-btn').forEach(btn => {
@@ -259,5 +428,92 @@ function formatDate(dateStr) {
     } catch (e) {
         console.error('Error formatting date:', e, dateStr);
         return dateStr;
+    }
+}
+
+
+async function exportSelectedHistory() {
+    if (selectedHistoryItems.size === 0) {
+        alert('⚠️ Vui lòng chọn ít nhất 1 lịch sử để export');
+        return;
+    }
+
+    const grouped = window.historyGroupedData;
+    if (!grouped) {
+        alert('❌ Không tìm thấy dữ liệu history');
+        return;
+    }
+
+    // Get selected history runs
+    const selectedRuns = Array.from(selectedHistoryItems).map(index => grouped[index]);
+
+    // Convert to testcase format for export
+    const testcases = selectedRuns.map(run => ({
+        code: run.testcase_code,
+        name: run.testcase_name,
+        group: run.group_type || 'GENERAL',
+        criteria: run.details[0]?.criteria || 'standard',
+        bot_url: null,
+        run_at: run.run_at, // Include run time
+        turns: run.details.map(turn => ({
+            scenario: turn.scenario || null,
+            question: turn.question,
+            expected: turn.expected,
+            required_keywords: turn.required_keywords || null,
+            forbidden_keywords: turn.forbidden_keywords || null,
+            actual: turn.actual || '',
+            action: turn.action || '',
+            response_time_ms: turn.response_time_ms || null,
+            verdict: turn.verdict || '',
+            error_desc: turn.error_desc || '',
+            suggestion: turn.suggestion || '',
+            suggested_response: turn.suggested_response || '',
+            tone_note: turn.tone_note || ''
+        }))
+    }));
+
+    const btnExport = document.getElementById('btn-export-selected');
+    btnExport.disabled = true;
+    btnExport.textContent = '⏳ Đang xuất...';
+
+    try {
+        const res = await fetch(API_ENDPOINTS.EXPORT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+            },
+            body: JSON.stringify({ testcases }),
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Lỗi server');
+        }
+
+        // Download file
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        // Lấy filename từ header hoặc dùng default
+        const contentDisposition = res.headers.get('Content-Disposition');
+        const filename = contentDisposition
+            ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+            : `history_export_${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.xlsx`;
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        alert(`✅ Đã xuất ${selectedRuns.length} lịch sử ra Excel`);
+    } catch (err) {
+        alert('❌ Xuất Excel thất bại: ' + err.message);
+    } finally {
+        btnExport.disabled = false;
+        updateExportButtonState();
     }
 }

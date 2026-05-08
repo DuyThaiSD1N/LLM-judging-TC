@@ -6,7 +6,6 @@ import { initRunner, runSingle } from './runner.js';
 import { renderEval, setRunSingleFn, clearAllTestcases, getTestcases } from './table-v2.js';
 import { initHistory } from './history.js';
 import { initCriteria } from './criteria.js';
-import { initExport } from './export.js';
 import { initFilter } from './filter-v2.js';
 import { initComparison } from './comparison.js';
 import { showToast } from './toast.js';
@@ -25,7 +24,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initRunner();
     initHistory();
     initCriteria();
-    initExport();
     initFilter();
     initComparison();
 
