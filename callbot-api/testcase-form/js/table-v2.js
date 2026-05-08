@@ -33,9 +33,7 @@ export function deleteTestcase(idx) {
 
 export function clearAllTestcases() {
   testcases = [];
-  selectedIndices.clear(); // Clear selection
   renderEval();
-  updateSelectionUI(); // Update compare button
 
   // Force enable upload zone (in case it was disabled during run)
   const fileInput = document.getElementById('file-input');
