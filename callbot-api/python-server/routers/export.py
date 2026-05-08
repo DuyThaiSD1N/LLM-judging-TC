@@ -34,7 +34,7 @@ async def export_testcases(request: ExportRequest):
         
         # Headers - SAME ORDER AS TEMPLATE + Run Time
         headers = [
-            "Tên Testcase", "Mã TC", "Setup lịch sử", "Câu hỏi từ User", "Yêu cầu kỳ vọng",
+            "Tên Testcase", "Mã TC", "Người thực hiện", "Setup lịch sử", "Câu hỏi từ User", "Yêu cầu kỳ vọng",
             "Từ khóa BẮT BUỘC", "Từ khóa CẤM", "LLM Judge", "Bot URL",
             "Lượt", "Thời gian chạy", "Câu trả lời thực tế", "Thời gian (ms)", "Kết quả",
             "Lỗi", "Đề xuất sửa", "Mẫu đề xuất", "Nhận xét giọng điệu"
@@ -101,6 +101,7 @@ async def export_testcases(request: ExportRequest):
                 row = [
                     tc.get('name', ''),
                     tc.get('code', ''),
+                    tc.get('executor', '') or '',
                     scenario,
                     turn.get('question', ''),
                     turn.get('expected', ''),
@@ -109,7 +110,7 @@ async def export_testcases(request: ExportRequest):
                     criteria_display,
                     bot_url_display,
                     f"Lượt {idx + 1}",
-                    run_at_display,  # NEW: Run time column
+                    run_at_display,  # Run time column
                     actual,
                     response_time,
                     verdict,
@@ -120,18 +121,28 @@ async def export_testcases(request: ExportRequest):
                 ]
                 ws.append(row)
         
-        # Column widths - SAME ORDER AS TEMPLATE + Run Time
-        column_widths = [35, 12, 50, 45, 60, 30, 30, 15, 35, 10, 18, 40, 12, 10, 40, 40, 40, 40]
+        # Column widths - 19 cột (thêm Người thực hiện)
+        # 1: Tên TC, 2: Mã TC, 3: Người thực hiện, 4: Setup lịch sử, 5: Câu hỏi, 6: Yêu cầu kỳ vọng,
+        # 7: Từ khóa BẮT BUỘC, 8: Từ khóa CẤM, 9: LLM Judge, 10: Bot URL, 11: Lượt, 12: Thời gian chạy,
+        # 13: Câu trả lời thực tế, 14: Thời gian (ms), 15: Kết quả, 16: Lỗi, 17: Đề xuất sửa, 18: Mẫu đề xuất, 19: Nhận xét giọng điệu
+        column_widths = [35, 12, 22, 50, 45, 65, 30, 30, 15, 35, 10, 18, 55, 12, 10, 45, 55, 55, 55]
         for idx, width in enumerate(column_widths, 1):
-            ws.column_dimensions[chr(64 + idx)].width = width
+            ws.column_dimensions[chr(64 + idx) if idx <= 26 else f"A{chr(64 + idx - 26)}"].width = width
         
-        # Style verdict cells (PASSED = green, FAILED = red) - Column N (14) - shifted by 1 for run_at
+        # Style all data cells: wrap text and top alignment
+        data_alignment = Alignment(wrap_text=True, vertical="top")
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+            for cell in row:
+                cell.alignment = data_alignment
+                cell.border = thin_border
+
+        # Style verdict cells (PASSED = green, FAILED = red) - Column O (15) - shifted +1 for executor
         passed_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
         passed_font = Font(color="006100", bold=True)
         failed_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
         failed_font = Font(color="9C0006", bold=True)
         
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=14, max_col=14):
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=15, max_col=15):
             cell = row[0]
             if cell.value == "PASSED":
                 cell.fill = passed_fill

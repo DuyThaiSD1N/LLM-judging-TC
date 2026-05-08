@@ -59,7 +59,8 @@ async def run_testcases(request: RunTestcasesRequest):
                 group=tc.group,
                 turns=turns,
                 criteria=tc.criteria,
-                bot_url=bot_url
+                bot_url=bot_url,
+                executor=tc.executor if hasattr(tc, 'executor') else None  # NEW
             )
             
             results.append(
@@ -123,7 +124,8 @@ async def run_single(request: RunSingleRequest):
             group=request.group,
             turns=turns,
             criteria=request.criteria,
-            bot_url=request.bot_url
+            bot_url=request.bot_url,
+            executor=request.executor  # NEW
         )
         
         return {
@@ -189,7 +191,8 @@ async def run_testcases_stream(request: RunTestcasesRequest):
                     group=testcase.group,
                     turns=tc_turns,
                     criteria=testcase.criteria,
-                    bot_url=bot_url
+                    bot_url=bot_url,
+                    executor=testcase.executor if hasattr(testcase, 'executor') else None  # NEW
                 )
                 return {
                     "index": index,

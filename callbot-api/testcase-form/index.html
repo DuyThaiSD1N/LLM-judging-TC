@@ -82,8 +82,8 @@
 
                     <div id="upload-status" class="upload-status" style="display:none;"></div>
 
-                    <!-- Row 1: Tên + Mã -->
-                    <div class="form-row-2">
+                    <!-- Row 1: Tên + Mã + Người thực hiện -->
+                    <div class="form-row-3">
                         <div class="field">
                             <label class="field-label">Tên Testcase <span class="req">*</span></label>
                             <input id="tc-name" type="text" class="input"
@@ -92,6 +92,10 @@
                         <div class="field">
                             <label class="field-label">Mã Testcase <span class="req">*</span></label>
                             <input id="tc-code" type="text" class="input" placeholder="VD: TC-001" />
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Người thực hiện</label>
+                            <input id="tc-executor" type="text" class="input" placeholder="VD: Nguyễn Văn A" />
                         </div>
                     </div>
 
@@ -234,11 +238,17 @@
                             <!-- Row 1: Search + Refresh -->
                             <div class="filter-row filter-row-main">
                                 <input type="text" id="history-search" class="input input-search"
-                                    placeholder="🔍 Tìm theo tên hoặc mã testcase...">
+                                    placeholder="🔍 Tìm theo tên hoặc mã testcase..." />
                                 <button id="btn-refresh-history" class="btn btn-secondary btn-icon-only"
                                     title="Làm mới dữ liệu">
                                     🔄
                                 </button>
+                            </div>
+
+                            <!-- Row 1b: Search by executor -->
+                            <div class="filter-row filter-row-main">
+                                <input type="text" id="history-search-executor" class="input input-search"
+                                    placeholder="🔍 Tìm theo người thực hiện..." />
                             </div>
 
                             <!-- Row 2: Date/Time Filters + Actions -->

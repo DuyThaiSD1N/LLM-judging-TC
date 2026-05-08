@@ -122,6 +122,7 @@ function initRow(tc) {
     code: tc.code,
     name: tc.name,
     group: tc.group,
+    executor: tc.executor || null,  // NEW: Người thực hiện
     criteria: tc.criteria || 'standard',
     bot_url: tc.bot_url || null,
     status: 'pending',
@@ -205,6 +206,10 @@ export function renderEval() {
       const tcCells = isFirst ? `
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
+        <td class="col-executor" rowspan="${turnCount}">${tc.executor
+          ? `<span class="executor-text">${tc.executor}</span>`
+          : '<span class="cell-empty">—</span>'
+        }</td>
         <td class="col-name" rowspan="${turnCount}">${tc.name}</td>
         <td class="col-criteria" rowspan="${turnCount}"><span class="criteria-badge">${criteriaDisplay}</span></td>
         <td class="col-bot-url" rowspan="${turnCount}">${tc.bot_url
@@ -248,6 +253,7 @@ export function renderEval() {
           <tr>
             <th>#</th>
             <th>Mã TC</th>
+            <th>Người thực hiện</th>
             <th>Tên Testcase</th>
             <th>LLM Judge</th>
             <th>Bot URL</th>

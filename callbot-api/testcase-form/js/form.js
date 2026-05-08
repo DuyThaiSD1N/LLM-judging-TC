@@ -36,6 +36,7 @@ function loadTestcaseToForm(index, tc) {
     // Populate form
     document.getElementById('tc-name').value = tc.name;
     document.getElementById('tc-code').value = tc.code;
+    document.getElementById('tc-executor').value = tc.executor || '';  // NEW
 
     // Set scenario (nếu có - lấy từ turn đầu tiên)
     const scenario = tc.turns[0]?.scenario || '';
@@ -77,6 +78,7 @@ function loadTestcaseToForm(index, tc) {
 function handleAdd() {
     const name = document.getElementById('tc-name').value.trim();
     const code = document.getElementById('tc-code').value.trim();
+    const executor = document.getElementById('tc-executor').value.trim();  // NEW
     const scenario = document.getElementById('tc-scenario').value.trim();  // NEW
     const questions = parseLines(document.getElementById('tc-question').value);
     const expecteds = parseLines(document.getElementById('tc-expected').value);
@@ -116,14 +118,14 @@ function handleAdd() {
     if (editingIndex !== null) {
         // Update existing testcase
         import('./table.js').then(({ updateTestcase }) => {
-            updateTestcase(editingIndex, { name, code, group: 'GENERAL', turns, criteria, bot_url: botUrl || null });
+            updateTestcase(editingIndex, { name, code, executor: executor || null, group: 'GENERAL', turns, criteria, bot_url: botUrl || null });
             resetForm();
             const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
             showToast(`✅ Đã cập nhật testcase "${name}" với ${turnText}`, 'success');
         });
     } else {
         // Add new testcase
-        addTestcase({ name, code, group: 'GENERAL', turns, criteria, bot_url: botUrl || null });
+        addTestcase({ name, code, executor: executor || null, group: 'GENERAL', turns, criteria, bot_url: botUrl || null });
         resetForm();
         const turnText = turns.length === 1 ? '1 lượt hỏi' : `${turns.length} lượt hỏi`;
         showToast(`✅ Đã thêm testcase "${name}" với ${turnText}`, 'success');
@@ -136,6 +138,7 @@ export function resetForm() {
     document.getElementById('tc-name').value = '';
     document.getElementById('tc-code').value = '';
     document.getElementById('tc-code').readOnly = false;
+    document.getElementById('tc-executor').value = '';  // NEW
     document.getElementById('tc-scenario').value = '';  // NEW
     document.getElementById('tc-question').value = '';
     document.getElementById('tc-expected').value = '';
