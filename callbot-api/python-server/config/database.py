@@ -68,10 +68,19 @@ def init_db():
             time_note TEXT,
             criteria TEXT DEFAULT 'standard',
             error TEXT,
+            executor TEXT,
             run_at DATETIME DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (testcase_id) REFERENCES testcases(id) ON DELETE CASCADE
         )
     """)
+    
+    # Migration: thêm cột executor nếu chưa có (cho DB cũ)
+    try:
+        cursor.execute("ALTER TABLE history ADD COLUMN executor TEXT")
+        conn.commit()
+        print("✅ Migration: Added executor column to history table")
+    except Exception:
+        pass  # Column already exists
     
     conn.commit()
     conn.close()

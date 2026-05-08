@@ -45,6 +45,7 @@ function setUIRunning(running) {
     // Form inputs
     const tcName = document.getElementById('tc-name');
     const tcCode = document.getElementById('tc-code');
+    const tcExecutor = document.getElementById('tc-executor');  // NEW
     const tcScenario = document.getElementById('tc-scenario');
     const tcBotUrl = document.getElementById('tc-bot-url');
     const tcQuestion = document.getElementById('tc-question');
@@ -68,7 +69,7 @@ function setUIRunning(running) {
     });
 
     // Disable/enable form inputs
-    [tcName, tcCode, tcScenario, tcBotUrl, tcQuestion, tcExpected, tcRequiredKeywords, tcForbiddenKeywords].forEach(el => {
+    [tcName, tcCode, tcExecutor, tcScenario, tcBotUrl, tcQuestion, tcExpected, tcRequiredKeywords, tcForbiddenKeywords].forEach(el => {
         if (el) {
             el.disabled = running;
             if (running) {
@@ -246,7 +247,8 @@ export async function runSingle(idx) {
                 group: tc.group,
                 turns: tc.turns,
                 criteria: tc.criteria || 'standard',
-                bot_url: tc.bot_url || null
+                bot_url: tc.bot_url || null,
+                executor: tc.executor || null  // NEW
             }),
         });
         const data = await res.json();

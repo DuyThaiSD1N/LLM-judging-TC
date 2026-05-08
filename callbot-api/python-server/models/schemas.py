@@ -27,6 +27,7 @@ class TestcaseBase(BaseModel):
     turns: List[Turn]
     criteria: str = "standard"
     bot_url: Optional[str] = None  # URL bot riêng cho testcase này
+    executor: Optional[str] = None  # Người thực hiện testcase
 
 
 class TestcaseCreate(TestcaseBase):
@@ -162,6 +163,7 @@ class RunSingleRequest(BaseModel):
     expected: Optional[str] = None
     criteria: str = "standard"
     bot_url: Optional[str] = None  # URL bot tùy chỉnh, None = dùng default
+    executor: Optional[str] = None  # Người thực hiện testcase
 
 
 class RunTestcasesRequest(BaseModel):
@@ -210,6 +212,7 @@ class HistoryRecord(BaseModel):
     testcase_code: Optional[str] = None
     testcase_name: Optional[str] = None
     group_type: Optional[str] = None
+    executor: Optional[str] = None  # Người thực hiện testcase
 
 
 class HistoryStats(BaseModel):

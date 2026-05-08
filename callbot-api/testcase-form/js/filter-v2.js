@@ -54,12 +54,13 @@ export function getFilters() {
 
 export function filterTestcases(testcases) {
     return testcases.filter(tc => {
-        // Search filter (tìm trong code, name)
+        // Search filter (tìm trong code, name, executor)
         if (currentFilters.search) {
             const searchLower = currentFilters.search;
             const matchCode = tc.code.toLowerCase().includes(searchLower);
             const matchName = tc.name.toLowerCase().includes(searchLower);
-            if (!matchCode && !matchName) return false;
+            const matchExecutor = tc.executor ? tc.executor.toLowerCase().includes(searchLower) : false;
+            if (!matchCode && !matchName && !matchExecutor) return false;
         }
 
         // Criteria filter

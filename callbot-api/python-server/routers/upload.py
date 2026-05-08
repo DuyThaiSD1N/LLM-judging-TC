@@ -40,6 +40,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
     
     last_name = None
     last_code = None
+    last_executor = None  # NEW: Track executor for merged cells
     last_criteria = None
     last_bot_url = None
     last_scenario = None  # NEW: Track scenario for merged cells
@@ -48,13 +49,14 @@ def parse_excel_with_merged_cells(file_content: bytes):
         # Extract values from cells
         name = row[0].value if len(row) > 0 else None
         code = row[1].value if len(row) > 1 else None
-        scenario = row[2].value if len(row) > 2 else None  # NEW: Setup lịch sử
-        question = row[3].value if len(row) > 3 else None
-        expected = row[4].value if len(row) > 4 else None
-        required_keywords = row[5].value if len(row) > 5 else None
-        forbidden_keywords = row[6].value if len(row) > 6 else None
-        criteria = row[7].value if len(row) > 7 else None
-        bot_url = row[8].value if len(row) > 8 else None
+        executor = row[2].value if len(row) > 2 else None  # NEW: Người thực hiện
+        scenario = row[3].value if len(row) > 3 else None  # Setup lịch sử (shift +1)
+        question = row[4].value if len(row) > 4 else None
+        expected = row[5].value if len(row) > 5 else None
+        required_keywords = row[6].value if len(row) > 6 else None
+        forbidden_keywords = row[7].value if len(row) > 7 else None
+        criteria = row[8].value if len(row) > 8 else None
+        bot_url = row[9].value if len(row) > 9 else None
         
         # Handle merged cells: if value is None, use last value
         if name is None or str(name).strip() == "":
@@ -66,6 +68,11 @@ def parse_excel_with_merged_cells(file_content: bytes):
             code = last_code
         else:
             last_code = code
+
+        if executor is None or str(executor).strip() == "":
+            executor = last_executor  # Inherit executor from previous row
+        else:
+            last_executor = executor  # Update last_executor
             
         if scenario is None or str(scenario).strip() == "":
             scenario = last_scenario  # NEW: Inherit scenario from previous row
@@ -90,6 +97,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
         # Normalize values
         code = str(code).strip()
         name = str(name).strip() if name else code
+        executor = str(executor).strip() if executor and str(executor).strip() else None  # NEW
         scenario = str(scenario).strip() if scenario and str(scenario).strip() else None  # NEW
         question = str(question).strip()
         expected = str(expected).strip()
@@ -103,6 +111,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
             testcases_dict[code] = {
                 "name": name,
                 "code": code,
+                "executor": executor,  # NEW: Người thực hiện
                 "criteria": criteria,
                 "bot_url": bot_url,
                 "turns": []
@@ -194,7 +203,8 @@ async def upload_excel(file: UploadFile = File(...)):
                     group="GENERAL",
                     turns=turns,
                     criteria=tc["criteria"],
-                    bot_url=tc["bot_url"]
+                    bot_url=tc["bot_url"],
+                    executor=tc.get("executor")  # NEW: Người thực hiện
                 )
             )
         

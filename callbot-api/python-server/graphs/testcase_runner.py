@@ -67,6 +67,7 @@ class TestcaseState(TypedDict):
     turns: List[Dict[str, str]]
     criteria: str
     bot_url: str  # URL bot (default hoặc tùy chỉnh)
+    executor: Optional[str]  # NEW: Người thực hiện testcase
 
     # Unique conversation ID cho mỗi lần chạy (tránh bot nhớ context cũ)
     conversation_id: str
@@ -305,7 +306,8 @@ async def save_history_node(state: TestcaseState) -> TestcaseState:
             testcase_name=state.get("name", state["code"]),
             testcase_group=state["group"],
             turn_results=state["turn_results"],
-            criteria=state["criteria"]
+            criteria=state["criteria"],
+            executor=state.get("executor")  # NEW
         )
         print(f"[save_history] {state['code']} → Saved successfully")
     except Exception as e:
@@ -384,7 +386,8 @@ async def run_testcase(
     group: str,
     turns: List[Dict[str, str]],
     criteria: str = "standard",
-    bot_url: Optional[str] = None
+    bot_url: Optional[str] = None,
+    executor: Optional[str] = None  # NEW: Người thực hiện
 ) -> Dict[str, Any]:
     """
     Chạy một testcase với LangGraph
@@ -413,6 +416,7 @@ async def run_testcase(
         "turns": turns,
         "criteria": criteria,
         "bot_url": resolved_url,
+        "executor": executor,  # NEW
         "conversation_id": code,  # ✅ Dùng code làm conversation_id để test memory
         "current_turn_index": 0,
         "turn_results": [],

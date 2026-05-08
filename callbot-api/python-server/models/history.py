@@ -15,7 +15,8 @@ class History:
         testcase_name: str,
         testcase_group: str,
         turn_results: List[Dict[str, Any]],
-        criteria: str = "standard"
+        criteria: str = "standard",
+        executor: Optional[str] = None  # NEW: Người thực hiện
     ):
         """
         Lưu lịch sử theo testcase với criteria
@@ -26,6 +27,7 @@ class History:
             testcase_group: Nhóm testcase
             turn_results: Danh sách kết quả từng turn
             criteria: Tiêu chí đánh giá
+            executor: Người thực hiện testcase (optional)
         """
         conn = get_db()
         cursor = conn.cursor()
@@ -69,8 +71,8 @@ class History:
                 INSERT INTO history (
                     testcase_id, turn_number, scenario, question, expected, actual, action,
                     response_time_ms, verdict, error_desc, suggestion, suggested_response,
-                    tone_note, time_verdict, time_note, criteria, error, run_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+                    tone_note, time_verdict, time_note, criteria, error, executor, run_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
                 """,
                 (
                     testcase_id,
@@ -89,7 +91,8 @@ class History:
                     turn.get("time_verdict"),
                     turn.get("time_note"),
                     criteria,
-                    turn.get("error")
+                    turn.get("error"),
+                    executor  # NEW
                 )
             )
         

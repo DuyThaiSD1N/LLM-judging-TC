@@ -20,6 +20,7 @@ export function initHistory() {
 
 function setupFilters() {
     const searchInput = document.getElementById('history-search');
+    const searchExecutorInput = document.getElementById('history-search-executor');  // NEW
     const dateFromInput = document.getElementById('history-date-from');
     const timeFromInput = document.getElementById('history-time-from');
     const dateToInput = document.getElementById('history-date-to');
@@ -30,6 +31,12 @@ function setupFilters() {
 
     if (searchInput) {
         searchInput.addEventListener('input', () => {
+            applyFilters();
+        });
+    }
+
+    if (searchExecutorInput) {  // NEW
+        searchExecutorInput.addEventListener('input', () => {
             applyFilters();
         });
     }
@@ -61,6 +68,7 @@ function setupFilters() {
     if (btnClearFilters) {
         btnClearFilters.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
+            if (searchExecutorInput) searchExecutorInput.value = '';  // NEW
             if (dateFromInput) dateFromInput.value = '';
             if (timeFromInput) timeFromInput.value = '';
             if (dateToInput) dateToInput.value = '';
@@ -85,12 +93,14 @@ function setupFilters() {
 
 function applyFilters() {
     const searchInput = document.getElementById('history-search');
+    const searchExecutorInput = document.getElementById('history-search-executor');  // NEW
     const dateFromInput = document.getElementById('history-date-from');
     const timeFromInput = document.getElementById('history-time-from');
     const dateToInput = document.getElementById('history-date-to');
     const timeToInput = document.getElementById('history-time-to');
 
     const searchTerm = searchInput?.value.toLowerCase() || '';
+    const executorTerm = searchExecutorInput?.value.toLowerCase() || '';  // NEW
 
     // Build datetime from date + time
     let dateTimeFrom = null;
@@ -110,12 +120,18 @@ function applyFilters() {
     historyItems.forEach(item => {
         const name = item.dataset.testcaseName?.toLowerCase() || '';
         const code = item.dataset.testcaseCode?.toLowerCase() || '';
+        const executor = item.dataset.executor?.toLowerCase() || '';  // NEW
         const runAt = item.dataset.runAt ? new Date(item.dataset.runAt) : null;
 
         let show = true;
 
-        // Search filter
+        // Search filter (by name or code)
         if (searchTerm && !name.includes(searchTerm) && !code.includes(searchTerm)) {
+            show = false;
+        }
+
+        // Search filter by executor  // NEW
+        if (executorTerm && !executor.includes(executorTerm)) {
             show = false;
         }
 
@@ -233,6 +249,7 @@ async function loadHistory() {
                  data-run-index="${index}"
                  data-testcase-name="${run.testcase_name}"
                  data-testcase-code="${run.testcase_code}"
+                 data-executor="${run.executor || ''}"
                  data-run-at="${run.run_at}">
                 <div class="history-header">
                     <input type="checkbox" 
@@ -252,6 +269,7 @@ async function loadHistory() {
                     <span style="color:#16a34a;">✓ Đạt: <strong>${run.passed}</strong></span>
                     <span style="color:#dc2626;">✕ Không đạt: <strong>${run.failed}</strong></span>
                     <span>Thời gian TB: <strong>${run.avg_time}ms</strong></span>
+                    ${run.executor ? `<span style="color:#94a3b8;">👤 Người thực hiện: <strong style="color:#e2e8f0;">${run.executor}</strong></span>` : ''}
                 </div>
                 <div class="history-details">
                     ${run.details.map((turn, i) => `
@@ -355,6 +373,7 @@ function groupHistoryByRun(history) {
                 testcase_id: item.testcase_id,
                 testcase_code: item.testcase_code,
                 testcase_name: item.testcase_name,
+                executor: item.executor || null,  // NEW
                 run_at: item.run_at,
                 turns: 0,
                 passed: 0,
@@ -451,6 +470,7 @@ async function exportSelectedHistory() {
     const testcases = selectedRuns.map(run => ({
         code: run.testcase_code,
         name: run.testcase_name,
+        executor: run.executor || null,  // NEW
         group: run.group_type || 'GENERAL',
         criteria: run.details[0]?.criteria || 'standard',
         bot_url: null,
