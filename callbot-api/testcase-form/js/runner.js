@@ -39,6 +39,7 @@ function setUIRunning(running) {
     const btnTemplate = document.getElementById('btn-template');
     const btnImportExcel = document.getElementById('btn-import-excel');
     const btnExport = document.getElementById('btn-export');
+    const btnCompare = document.getElementById('btn-compare');
     const fileInput = document.getElementById('file-input');
 
     // Form inputs
@@ -54,7 +55,7 @@ function setUIRunning(running) {
     const criteriaTrigger = document.getElementById('criteria-trigger');
 
     // Disable/enable tất cả buttons
-    [btnRunAll, btnAdd, btnReset, btnClearAll, btnTemplate, btnImportExcel, btnExport].forEach(el => {
+    [btnRunAll, btnAdd, btnReset, btnClearAll, btnTemplate, btnImportExcel, btnExport, btnCompare].forEach(el => {
         if (el) {
             el.disabled = running;
             if (running) {
