@@ -37,8 +37,17 @@ async def run_testcases(request: RunTestcasesRequest):
     results: List[TestcaseRunResult] = []
     
     for tc in request.testcases:
-        # Chuẩn hoá: hỗ trợ format với turns
-        turns = [{"question": t.question, "expected": t.expected} for t in tc.turns]
+        # Chuẩn hoá: giữ nguyên scenario, required/forbidden keywords cho mỗi turn
+        turns = [
+            {
+                "scenario": t.scenario,
+                "question": t.question,
+                "expected": t.expected,
+                "required_keywords": t.required_keywords,
+                "forbidden_keywords": t.forbidden_keywords,
+            }
+            for t in tc.turns
+        ]
         
         try:
             # Run testcase với LangGraph
@@ -91,7 +100,16 @@ async def run_single(request: RunSingleRequest):
     """
     # Hỗ trợ cả format cũ và mới
     if request.turns:
-        turns = [{"question": t.question, "expected": t.expected} for t in request.turns]
+        turns = [
+            {
+                "scenario": t.scenario,
+                "question": t.question,
+                "expected": t.expected,
+                "required_keywords": t.required_keywords,
+                "forbidden_keywords": t.forbidden_keywords,
+            }
+            for t in request.turns
+        ]
     elif request.question and request.expected:
         turns = [{"question": request.question, "expected": request.expected}]
     else:
@@ -152,7 +170,16 @@ async def run_testcases_stream(request: RunTestcasesRequest):
             mỗi coroutine giữ bản sao riêng của turns.
             """
             # ⚠️ QUAN TRỌNG: tạo turns ngay tại đây, không dùng biến ngoài
-            tc_turns = [{"question": t.question, "expected": t.expected} for t in testcase.turns]
+            tc_turns = [
+                {
+                    "scenario": t.scenario,
+                    "question": t.question,
+                    "expected": t.expected,
+                    "required_keywords": t.required_keywords,
+                    "forbidden_keywords": t.forbidden_keywords,
+                }
+                for t in testcase.turns
+            ]
             try:
                 # Ưu tiên bot_url của testcase, fallback về request.bot_url
                 bot_url = testcase.bot_url if testcase.bot_url else request.bot_url

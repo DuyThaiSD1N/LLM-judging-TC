@@ -1,13 +1,10 @@
-// comparison.js — Xử lý so sánh testcase
+// comparison.js — Xử lý so sánh testcase (DISABLED)
 
-import { getSelectedTestcases, clearSelection } from './table-v2.js';
 import { showToast } from './toast.js';
 
 export function initComparison() {
-    const btnCompare = document.getElementById('btn-compare');
-    if (btnCompare) {
-        btnCompare.addEventListener('click', handleCompare);
-    }
+    // Comparison feature disabled - button removed from UI
+    console.log('⚠️ Comparison feature disabled');
 }
 
 async function handleCompare() {

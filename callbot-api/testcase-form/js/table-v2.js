@@ -202,12 +202,6 @@ export function renderEval() {
       const isFirst = j === 0;
       const rowClass = isFirst ? 'tc-first-row' : 'tc-sub-row';
 
-      const checkboxCell = isFirst ? `
-        <td class="col-checkbox" rowspan="${turnCount}">
-          <input type="checkbox" class="tc-checkbox" data-idx="${i}" 
-            ${tc.status !== 'done' ? 'disabled' : ''} />
-        </td>` : '';
-
       const tcCells = isFirst ? `
         <td class="col-num"  rowspan="${turnCount}">${i + 1}</td>
         <td class="col-code" rowspan="${turnCount}">${tc.code}</td>
@@ -227,7 +221,6 @@ export function renderEval() {
 
       return `
         <tr class="${rowClass}">
-          ${checkboxCell}
           ${tcCells}
           <td class="col-turn-num">Lượt ${j + 1}</td>
           <td class="col-scenario">${turn.scenario
@@ -249,33 +242,32 @@ export function renderEval() {
   }).join('');
 
   container.innerHTML = `
-    <table class="testcase-table">
-      <thead>
-        <tr>
-          <th class="col-checkbox">
-            <input type="checkbox" id="select-all-checkbox" title="Chọn tất cả" />
-          </th>
-          <th>#</th>
-          <th>Mã TC</th>
-          <th>Tên Testcase</th>
-          <th>LLM Judge</th>
-          <th>Bot URL</th>
-          <th>Lượt</th>
-          <th>Setup lịch sử</th>
-          <th>Câu hỏi từ User</th>
-          <th>Yêu cầu kỳ vọng</th>
-          <th>Từ khóa bắt buộc</th>
-          <th>Từ khóa cấm</th>
-          <th>Câu trả lời thực tế</th>
-          <th>Thời gian</th>
-          <th>Kết quả</th>
-          <th>Lỗi</th>
-          <th>Đề xuất sửa</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <div class="table-wrapper">
+      <table class="testcase-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Mã TC</th>
+            <th>Tên Testcase</th>
+            <th>LLM Judge</th>
+            <th>Bot URL</th>
+            <th>Lượt</th>
+            <th>Setup lịch sử</th>
+            <th>Câu hỏi từ User</th>
+            <th>Yêu cầu kỳ vọng</th>
+            <th>Từ khóa bắt buộc</th>
+            <th>Từ khóa cấm</th>
+            <th>Câu trả lời thực tế</th>
+            <th>Thời gian</th>
+            <th>Kết quả</th>
+            <th>Lỗi</th>
+            <th>Đề xuất sửa</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 
   // Event listeners
   container.querySelectorAll('.btn-del').forEach(btn =>
@@ -296,87 +288,6 @@ export function renderEval() {
       el.style.cursor = 'not-allowed';
     });
   }
-
-  // Setup checkbox listeners
-  setupCheckboxListeners();
-}
-
-// ── Checkbox Selection Logic ──────────────────────────────────────────────
-let selectedIndices = new Set();
-
-function setupCheckboxListeners() {
-  const selectAllCheckbox = document.getElementById('select-all-checkbox');
-  const checkboxes = document.querySelectorAll('.tc-checkbox:not([disabled])');
-
-  // Select all
-  if (selectAllCheckbox) {
-    selectAllCheckbox.addEventListener('change', (e) => {
-      const isChecked = e.target.checked;
-      checkboxes.forEach(cb => {
-        cb.checked = isChecked;
-        const idx = Number(cb.dataset.idx);
-        if (isChecked) {
-          selectedIndices.add(idx);
-        } else {
-          selectedIndices.delete(idx);
-        }
-      });
-      updateSelectionUI();
-    });
-  }
-
-  // Individual checkboxes
-  checkboxes.forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const idx = Number(e.target.dataset.idx);
-      if (e.target.checked) {
-        selectedIndices.add(idx);
-      } else {
-        selectedIndices.delete(idx);
-      }
-
-      // Update select-all checkbox
-      if (selectAllCheckbox) {
-        selectAllCheckbox.checked = selectedIndices.size === checkboxes.length;
-      }
-
-      updateSelectionUI();
-    });
-  });
-}
-
-function updateSelectionUI() {
-  const count = selectedIndices.size;
-
-  // Update comparison button state
-  const btnCompare = document.getElementById('btn-compare');
-  if (btnCompare) {
-    if (count >= 2 && count <= 10) {
-      btnCompare.disabled = false;
-      btnCompare.textContent = `⚖️ So sánh (${count})`;
-    } else {
-      btnCompare.disabled = true;
-      if (count === 0) {
-        btnCompare.textContent = '⚖️ So sánh';
-      } else if (count === 1) {
-        btnCompare.textContent = '⚖️ So sánh (chọn thêm ≥1)';
-      } else {
-        btnCompare.textContent = `⚖️ So sánh (tối đa 10)`;
-      }
-    }
-  }
-}
-
-export function getSelectedTestcases() {
-  return Array.from(selectedIndices).map(idx => testcases[idx]).filter(tc => tc);
-}
-
-export function clearSelection() {
-  selectedIndices.clear();
-  document.querySelectorAll('.tc-checkbox').forEach(cb => cb.checked = false);
-  const selectAllCheckbox = document.getElementById('select-all-checkbox');
-  if (selectAllCheckbox) selectAllCheckbox.checked = false;
-  updateSelectionUI();
 }
 
 // ── Cell renderers ────────────────────────────────────────────────────────
@@ -430,7 +341,6 @@ function renderErrorDesc(turn, tcStatus) {
   // Xử lý error_desc - có thể là string hoặc object
   let desc = turn.error_desc;
   if (typeof desc === 'object' && desc !== null) {
-    // Nếu là object, lấy field 'error' hoặc stringify
     desc = desc.error || JSON.stringify(desc);
   }
 
@@ -441,27 +351,50 @@ function renderErrorDesc(turn, tcStatus) {
 
   if (!desc) return '<span class="cell-empty">—</span>';
 
-  return `<div class="judge-text err-text">${desc}</div>`;
+  return `<div class="judge-comment error-comment">
+    <div class="comment-icon">❌</div>
+    <div class="comment-text">${desc}</div>
+  </div>`;
 }
 
 function renderSuggestion(turn, tcStatus) {
   if (tcStatus !== 'done') return '<span class="cell-empty">—</span>';
 
-  // Chỉ hiển thị suggestion khi FAILED
+  // Với PASSED, chỉ hiển thị tone_note nếu có
   if (turn.verdict === 'PASSED') {
-    // Với PASSED, chỉ hiển thị tone_note nếu có
     if (turn.tone_note) {
-      return `<div class="judge-text tone-text">🎙 ${turn.tone_note}</div>`;
+      return `<div class="judge-comment tone-comment">
+        <div class="comment-icon">🎙</div>
+        <div class="comment-text">${turn.tone_note}</div>
+      </div>`;
     }
     return '<span class="cell-empty">—</span>';
   }
 
   // Với FAILED, hiển thị đầy đủ
   const parts = [];
-  if (turn.suggestion) parts.push(`<div class="judge-text sug-text">💡 ${turn.suggestion}</div>`);
-  if (turn.suggested_response) {
-    parts.push(`<div class="judge-text suggested-response-text" style="margin-top:8px;padding:10px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:6px;color:#15803d;line-height:1.6;">📝 <strong>Mẫu đề xuất:</strong><br/>${turn.suggested_response}</div>`);
+
+  if (turn.suggestion) {
+    parts.push(`<div class="judge-comment suggestion-comment">
+      <div class="comment-icon">💡</div>
+      <div class="comment-text">${turn.suggestion}</div>
+    </div>`);
   }
-  if (turn.tone_note) parts.push(`<div class="judge-text tone-text">🎙 ${turn.tone_note}</div>`);
+
+  if (turn.suggested_response) {
+    parts.push(`<div class="judge-comment response-comment">
+      <div class="comment-icon">📝</div>
+      <div class="comment-label">Mẫu đề xuất:</div>
+      <div class="comment-text">${turn.suggested_response}</div>
+    </div>`);
+  }
+
+  if (turn.tone_note) {
+    parts.push(`<div class="judge-comment tone-comment">
+      <div class="comment-icon">🎙</div>
+      <div class="comment-text">${turn.tone_note}</div>
+    </div>`);
+  }
+
   return parts.length ? parts.join('') : '<span class="cell-empty">—</span>';
 }

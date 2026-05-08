@@ -52,10 +52,10 @@ class History:
             for idx, turn in enumerate(turn_results):
                 cursor.execute(
                     """
-                    INSERT INTO turns (testcase_id, turn_number, question, expected)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO turns (testcase_id, turn_number, scenario, question, expected)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (testcase_id, idx + 1, turn["question"], turn["expected"])
+                    (testcase_id, idx + 1, turn.get("scenario"), turn["question"], turn["expected"])
                 )
             
             print(f"✅ Created testcase {testcase_code} in database")
@@ -153,11 +153,8 @@ class History:
         history = []
         for row in cursor.fetchall():
             item = dict(row)
-            # Ensure run_at is in ISO format for proper parsing in frontend
-            if item.get('run_at'):
-                # SQLite stores as 'YYYY-MM-DD HH:MM:SS', convert to ISO format
-                # Assume it's already in local time
-                item['run_at'] = item['run_at'].replace(' ', 'T')
+            # Keep run_at as-is (local time string from database)
+            # JavaScript will parse 'YYYY-MM-DD HH:MM:SS' as local time
             history.append(item)
         
         conn.close()
