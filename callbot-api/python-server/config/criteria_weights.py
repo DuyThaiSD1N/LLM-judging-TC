@@ -15,27 +15,27 @@ class CriteriaConfig(BaseModel):
 CRITERIA_CONFIG: Dict[str, CriteriaConfig] = {
     # Standard - Cân bằng giữa nội dung và trải nghiệm
     "standard": CriteriaConfig(
-        description="Cân bằng: nội dung đúng đủ, giọng điệu tự nhiên, thời gian hợp lý"
+        description="Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s"
     ),
     
     # Strict - Yêu cầu cao về tất cả khía cạnh
     "strict": CriteriaConfig(
-        description="Nghiêm ngặt: yêu cầu cao về nội dung, giọng điệu, và thời gian"
+        description="Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s"
     ),
     
     # Speed-Focused - Đánh giá theo tốc độ phản hồi
     "speed-focused": CriteriaConfig(
-        description="Tốc độ: ưu tiên thời gian phản hồi nhanh, nội dung đủ tốt"
+        description="Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin"
     ),
     
     # Content-Only - Chỉ tập trung vào nội dung
     "content-only": CriteriaConfig(
-        description="Chỉ nội dung: đánh giá độ chính xác thông tin, bỏ qua giọng điệu"
+        description="Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu"
     ),
     
     # UX-Focused - Ưu tiên trải nghiệm người dùng
     "ux-focused": CriteriaConfig(
-        description="Trải nghiệm: ưu tiên giọng điệu thân thiện, tự nhiên"
+        description="Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin"
     )
 }
 
@@ -62,26 +62,26 @@ CRITERIA_LIST = [
     {
         "id": "standard",
         "name": "Tiêu chí Chuẩn",
-        "description": CRITERIA_CONFIG["standard"].description
+        "description": "Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s"
     },
     {
         "id": "strict",
         "name": "Tiêu chí Nghiêm ngặt",
-        "description": CRITERIA_CONFIG["strict"].description
+        "description": "Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s"
     },
     {
         "id": "speed-focused",
         "name": "Tiêu chí Tốc độ",
-        "description": CRITERIA_CONFIG["speed-focused"].description
+        "description": "Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin"
     },
     {
         "id": "content-only",
         "name": "Tiêu chí Nội dung",
-        "description": CRITERIA_CONFIG["content-only"].description
+        "description": "Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu"
     },
     {
         "id": "ux-focused",
         "name": "Tiêu chí Trải nghiệm",
-        "description": CRITERIA_CONFIG["ux-focused"].description
+        "description": "Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin"
     }
 ]

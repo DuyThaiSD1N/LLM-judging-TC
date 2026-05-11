@@ -482,30 +482,31 @@ TIÊU CHÍ: CHUẨN (Cân bằng)
 ═══════════════════════════════════════════════════════════
 
 NGUYÊN TẮC ĐÁNH GIÁ:
-1. NỘI DUNG: Response phải đáp ứng phần lớn thông tin kỳ vọng
-   - Nếu đáp ứng ≥90% thông tin → có thể PASSED
-   - Nếu < 90% → FAILED
-   - Thông tin SAI → FAILED (nghiêm trọng)
+1. NỘI DUNG: ≥90% thông tin kỳ vọng
+   - Đếm tất cả thông tin trong kỳ vọng
+   - Kiểm tra bao nhiêu thông tin có trong response
+   - Tính % = (có / tổng) × 100
+   - ≥90% → PASSED (nếu không vi phạm keywords)
+   - <90% → FAILED
 
 2. KEYWORDS:
    - Thiếu từ khóa BẮT BUỘC → FAILED
    - Có từ khóa CẤM → FAILED
 
 3. THỜI GIAN:
-   - ≤3s: Tốt, không ghi nhận
-   - >3s: Ghi nhận trong time_note, nhưng KHÔNG ảnh hưởng verdict
+   - ≤3s: Tốt (time_verdict = "good")
+   - >3s: Chấp nhận được (time_verdict = "ok", ghi nhận trong time_note)
+   - Không ảnh hưởng verdict
 
 4. GIỌNG ĐIỆU:
-   - Phải có xưng hô (anh/chị/em/quý khách)
    - Phải lịch sự, tôn trọng
-   - Thiếu xưng hô → Ghi vào tone_note, nhưng KHÔNG ảnh hưởng verdict
-   - Thô lỗ, thiếu tôn trọng → FAILED
+   - Nên có xưng hô (anh/chị/em/quý khách)
+   - Thiếu xưng hô → Ghi vào tone_note, KHÔNG ảnh hưởng verdict
+   - Thô lỗ, không tôn trọng → FAILED
 
-CÁCH TỰ ĐÁNH GIÁ:
-- Liệt kê tất cả thông tin trong kỳ vọng
-- Đếm có bao nhiêu thông tin trong response
-- Tính % = (có / tổng) × 100
-- Nếu ≥90% + không vi phạm keywords + giọng điệu OK → PASSED
+QUYẾT ĐỊNH PASSED/FAILED:
+- PASSED nếu: ≥90% thông tin + không vi phạm keywords + giọng điệu lịch sự
+- FAILED nếu: <90% thông tin HOẶC vi phạm keywords HOẶC giọng điệu thô lỗ
 """,
     
     "strict": """
@@ -514,19 +515,21 @@ TIÊU CHÍ: NGHIÊM NGẶT (Yêu cầu cao)
 ═══════════════════════════════════════════════════════════
 
 NGUYÊN TẮC ĐÁNH GIÁ:
-1. NỘI DUNG: Response phải đáp ứng hầu hết thông tin kỳ vọng
-   - Nếu đáp ứng ≥95% thông tin → có thể PASSED
-   - Nếu < 95% → FAILED
+1. NỘI DUNG: ≥95% thông tin kỳ vọng
+   - Đếm tất cả thông tin trong kỳ vọng
+   - Kiểm tra bao nhiêu thông tin có trong response
+   - Tính % = (có / tổng) × 100
+   - ≥95% → PASSED (nếu không vi phạm keywords)
+   - <95% → FAILED
    - Thông tin SAI → FAILED (nghiêm trọng)
-   - Thông tin KHÔNG RÕ RÀNG → FAILED
 
 2. KEYWORDS:
    - Thiếu từ khóa BẮT BUỘC → FAILED
    - Có từ khóa CẤM → FAILED
 
 3. THỜI GIAN:
-   - ≤2s: Tốt
-   - 2-3s: Chấp nhận được, ghi nhận
+   - ≤2s: Tốt (time_verdict = "good")
+   - 2-3s: Chấp nhận được (time_verdict = "ok")
    - >3s: FAILED (quá chậm)
 
 4. GIỌNG ĐIỆU:
@@ -535,13 +538,9 @@ NGUYÊN TẮC ĐÁNH GIÁ:
    - Thiếu xưng hô → FAILED
    - Thô lỗ → FAILED
 
-CÁCH TỰ ĐÁNH GIÁ:
-- Liệt kê tất cả thông tin trong kỳ vọng
-- Đếm có bao nhiêu thông tin trong response
-- Tính % = (có / tổng) × 100
-- Kiểm tra thời gian, giọng điệu
-- Nếu ≥95% + ≤3s + có xưng hô + không vi phạm keywords → PASSED
-- BẤT KỲ lỗi nhỏ nào cũng phải ghi nhận chi tiết
+QUYẾT ĐỊNH PASSED/FAILED:
+- PASSED nếu: ≥95% thông tin + ≤3s + có xưng hô + không vi phạm keywords
+- FAILED nếu: <95% thông tin HOẶC >3s HOẶC thiếu xưng hô HOẶC vi phạm keywords
 """,
     
     "speed-focused": """
@@ -550,14 +549,15 @@ TIÊU CHÍ: TỐC ĐỘ (Ưu tiên nhanh)
 ═══════════════════════════════════════════════════════════
 
 NGUYÊN TẮC ĐÁNH GIÁ:
-1. THỜI GIAN: Quan trọng nhất
-   - ≤2s: PASSED (nếu nội dung đủ tốt)
+1. THỜI GIAN: Quan trọng nhất (bắt buộc)
+   - ≤2s: PASSED (nếu nội dung ≥80%)
    - >2s: FAILED (quá chậm, không chấp nhận)
 
-2. NỘI DUNG: Yêu cầu thấp hơn
-   - Nếu đáp ứng ≥80% thông tin → có thể PASSED
-   - Nếu < 80% → FAILED
-   - Thông tin SAI → FAILED
+2. NỘI DUNG: ≥80% thông tin kỳ vọng
+   - Chỉ kiểm tra nếu thời gian ≤2s
+   - Tính % = (có / tổng) × 100
+   - ≥80% → PASSED
+   - <80% → FAILED
 
 3. KEYWORDS:
    - Thiếu từ khóa BẮT BUỘC → FAILED
@@ -567,11 +567,9 @@ NGUYÊN TẮC ĐÁNH GIÁ:
    - KHÔNG đánh giá
    - tone_note = "" (luôn để trống)
 
-CÁCH TỰ ĐÁNH GIÁ:
-- Kiểm tra thời gian TRƯỚC
-- Nếu >2s → FAILED ngay (không cần kiểm tra nội dung)
-- Nếu ≤2s → Kiểm tra nội dung
-- Nếu ≥80% thông tin + không vi phạm keywords → PASSED
+QUYẾT ĐỊNH PASSED/FAILED:
+- PASSED nếu: ≤2s + ≥80% thông tin + không vi phạm keywords
+- FAILED nếu: >2s HOẶC <80% thông tin HOẶC vi phạm keywords
 """,
     
     "content-only": """
@@ -580,11 +578,13 @@ TIÊU CHÍ: NỘI DUNG (Chỉ đánh giá độ chính xác)
 ═══════════════════════════════════════════════════════════
 
 NGUYÊN TẮC ĐÁNH GIÁ:
-1. NỘI DUNG: Quan trọng nhất, yêu cầu cao
-   - Nếu đáp ứng ≥95% thông tin → có thể PASSED
-   - Nếu < 95% → FAILED
+1. NỘI DUNG: ≥95% thông tin kỳ vọng (yêu cầu cao)
+   - Đếm tất cả thông tin trong kỳ vọng
+   - Kiểm tra bao nhiêu thông tin có trong response
+   - Tính % = (có / tổng) × 100
+   - ≥95% → PASSED
+   - <95% → FAILED
    - Thông tin SAI → FAILED (nghiêm trọng)
-   - Thông tin KHÔNG RÕ RÀNG → FAILED
 
 2. KEYWORDS:
    - Thiếu từ khóa BẮT BUỘC → FAILED
@@ -593,18 +593,15 @@ NGUYÊN TẮC ĐÁNH GIÁ:
 3. THỜI GIAN:
    - KHÔNG đánh giá
    - time_verdict = "good" (luôn)
-   - time_note = "Không đánh giá thời gian"
+   - time_note = "" (để trống)
 
 4. GIỌNG ĐIỆU:
    - KHÔNG đánh giá
    - tone_note = "" (luôn để trống)
 
-CÁCH TỰ ĐÁNH GIÁ:
-- CHỈ tập trung vào nội dung
-- Liệt kê tất cả thông tin trong kỳ vọng
-- Đếm có bao nhiêu thông tin trong response
-- Tính % = (có / tổng) × 100
-- Nếu ≥95% + không vi phạm keywords → PASSED
+QUYẾT ĐỊNH PASSED/FAILED:
+- PASSED nếu: ≥95% thông tin + không vi phạm keywords
+- FAILED nếu: <95% thông tin HOẶC vi phạm keywords
 - BỎ QUA thời gian và giọng điệu hoàn toàn
 """,
     
@@ -614,33 +611,31 @@ TIÊU CHÍ: TRẢI NGHIỆM (Ưu tiên thân thiện)
 ═══════════════════════════════════════════════════════════
 
 NGUYÊN TẮC ĐÁNH GIÁ:
-1. GIỌNG ĐIỆU: Quan trọng nhất
-   - PHẢI thân thiện, tự nhiên
-   - PHẢI có xưng hô
+1. GIỌNG ĐIỆU: Quan trọng nhất (bắt buộc)
+   - PHẢI có xưng hô (anh/chị/em/quý khách)
    - PHẢI lịch sự, tôn trọng
-   - Nên có cảm xúc tích cực (vui vẻ, nhiệt tình)
+   - PHẢI thân thiện, tự nhiên
    - Thiếu xưng hô → FAILED
-   - Khô khan, máy móc → FAILED
-   - Thô lỗ → FAILED
+   - Thô lỗ, không tôn trọng → FAILED
 
-2. NỘI DUNG: Yêu cầu thấp hơn
-   - Nếu đáp ứng ≥85% thông tin → có thể PASSED
-   - Nếu < 85% → FAILED
-   - Thông tin SAI → FAILED
+2. NỘI DUNG: ≥85% thông tin kỳ vọng
+   - Chỉ kiểm tra nếu giọng điệu OK
+   - Tính % = (có / tổng) × 100
+   - ≥85% → PASSED
+   - <85% → FAILED
 
 3. KEYWORDS:
    - Thiếu từ khóa BẮT BUỘC → FAILED
    - Có từ khóa CẤM → FAILED
 
 4. THỜI GIAN:
-   - ≤3s: Tốt
-   - >3s: Ghi nhận, nhưng KHÔNG ảnh hưởng verdict
+   - ≤3s: Tốt (time_verdict = "good")
+   - >3s: Chấp nhận được (time_verdict = "ok")
+   - Không ảnh hưởng verdict
 
-CÁCH TỰ ĐÁNH GIÁ:
-- Kiểm tra giọng điệu TRƯỚC
-- Nếu thiếu xưng hô hoặc không thân thiện → FAILED
-- Nếu giọng điệu OK → Kiểm tra nội dung
-- Nếu ≥85% thông tin + không vi phạm keywords → PASSED
+QUYẾT ĐỊNH PASSED/FAILED:
+- PASSED nếu: Có xưng hô + lịch sự + ≥85% thông tin + không vi phạm keywords
+- FAILED nếu: Thiếu xưng hô HOẶC thô lỗ HOẶC <85% thông tin HOẶC vi phạm keywords
 """
 }
 

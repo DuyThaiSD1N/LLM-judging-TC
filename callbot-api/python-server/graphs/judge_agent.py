@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 from langsmith import traceable
 
 from prompts.simple_prompt import create_simple_judge_prompt
+from prompts.advanced_prompt import create_advanced_judge_prompt
 
 
 # Time thresholds
@@ -183,16 +184,15 @@ class JudgeAgent:
         time_info = classify_time(response_time_ms)
         time_label = f"{response_time_ms}ms ({time_info['label']})"
         
-        # Create simple prompt with criteria
-        prompt_text = create_simple_judge_prompt(
+        # Create advanced prompt with criteria-specific instructions
+        prompt_text = create_advanced_judge_prompt(
             question=question,
             expected=expected,
             actual=actual,
             time_label=time_label,
-            criteria=criteria,  # Pass criteria to prompt
+            criteria=criteria,  # Pass criteria to get dynamic prompt
             required_keywords=required_keywords,
-            forbidden_keywords=forbidden_keywords,
-            inject_knowledge=True  # ← Enable knowledge base injection
+            forbidden_keywords=forbidden_keywords
         )
         
         # Retry logic với exponential backoff
