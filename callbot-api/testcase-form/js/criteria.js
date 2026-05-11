@@ -17,19 +17,42 @@ export function getSelectedCriteria() {
 
 async function loadCriteriaList() {
     try {
+        console.log('📡 Fetching criteria from:', API_ENDPOINTS.CRITERIA);
         const res = await fetch(API_ENDPOINTS.CRITERIA, {
             headers: { 'X-API-Key': API_KEY }
         });
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+
         const data = await res.json();
+        console.log('✅ Criteria loaded:', data);
+
         criteriaList = data.criteria || [];
+
+        if (criteriaList.length === 0) {
+            console.warn('⚠️ No criteria returned from API, using fallback');
+            criteriaList = [
+                { id: 'standard', name: 'Tiêu chí Chuẩn', description: 'Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s' },
+                { id: 'strict', name: 'Tiêu chí Nghiêm ngặt', description: 'Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s' },
+                { id: 'speed-focused', name: 'Tiêu chí Tốc độ', description: 'Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin' },
+                { id: 'content-only', name: 'Tiêu chí Nội dung', description: 'Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu' },
+                { id: 'ux-focused', name: 'Tiêu chí Trải nghiệm', description: 'Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin' }
+            ];
+        }
 
         // Populate dropdown
         populateDropdown();
     } catch (err) {
-        console.error('Failed to load criteria:', err);
+        console.error('❌ Failed to load criteria:', err);
         // Fallback to default
         criteriaList = [
-            { id: 'standard', name: 'Tiêu chí Chuẩn', description: 'Đánh giá cân bằng' }
+            { id: 'standard', name: 'Tiêu chí Chuẩn', description: 'Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s' },
+            { id: 'strict', name: 'Tiêu chí Nghiêm ngặt', description: 'Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s' },
+            { id: 'speed-focused', name: 'Tiêu chí Tốc độ', description: 'Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin' },
+            { id: 'content-only', name: 'Tiêu chí Nội dung', description: 'Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu' },
+            { id: 'ux-focused', name: 'Tiêu chí Trải nghiệm', description: 'Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin' }
         ];
         populateDropdown();
     }
@@ -93,12 +116,12 @@ function toggleDropdown() {
     const trigger = document.getElementById('criteria-trigger');
     const popup = document.getElementById('criteria-popup');
 
-    const isOpen = popup.classList.contains('open');
+    const isOpen = popup.classList.contains('show');
     if (isOpen) {
         closeDropdown();
     } else {
         trigger.classList.add('open');
-        popup.classList.add('open');
+        popup.classList.add('show');
     }
 }
 
@@ -106,7 +129,7 @@ function closeDropdown() {
     const trigger = document.getElementById('criteria-trigger');
     const popup = document.getElementById('criteria-popup');
     trigger.classList.remove('open');
-    popup.classList.remove('open');
+    popup.classList.remove('show');
 }
 
 function updateDisplay() {
