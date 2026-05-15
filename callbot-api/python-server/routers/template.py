@@ -34,7 +34,7 @@ async def get_template():
         "Yêu cầu kỳ vọng",
         "Từ khóa BẮT BUỘC (tùy chọn)",
         "Từ khóa CẤM (tùy chọn)",
-        "LLM Judge (standard/strict/speed-focused/content-only/ux-focused)",
+        "LLM Judge (goal_achievement/semantic_correctness/conversation_quality/context_consistency/safety_compliance)",
         "Bot URL (tùy chọn)"
     ]
     ws.append(headers)
@@ -49,7 +49,7 @@ async def get_template():
         "Cần CMND/CCCD và giấy xác nhận tình trạng hôn nhân, nộp tại UBND cấp xã",
         "CMND, giấy xác nhận",  # Từ khóa bắt buộc
         "không rõ, không biết",  # Từ khóa cấm
-        "standard",
+        "goal_achievement",
         ""  # Bot URL để trống = dùng mặc định
     ]
     ws.append(sample)

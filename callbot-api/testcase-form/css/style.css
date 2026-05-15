@@ -1043,8 +1043,11 @@ body.sidebar-layout {
 }
 
 .testcase-table .col-time {
-  min-width: 300px;
-  max-width: 500px;
+  width: 96px;
+  min-width: 96px;
+  max-width: 96px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .testcase-table .col-verdict {

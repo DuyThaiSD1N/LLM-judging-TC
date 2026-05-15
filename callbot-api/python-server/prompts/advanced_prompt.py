@@ -1,108 +1,111 @@
 """
-ADVANCED JUDGE PROMPT - Nâng cấp với đánh giá động theo tiêu chí
+ADVANCED JUDGE PROMPT - Nâng cấp với phân tích ngữ nghĩa sâu
 Mỗi tiêu chí sẽ có prompt riêng, focus khác nhau, output khác nhau
+LLM phân tích ý nghĩa thực sự, không chỉ từ khóa
 """
 
 # ═══════════════════════════════════════════════════════════
-# BASE SYSTEM MESSAGE - Chung cho tất cả
+# BASE SYSTEM MESSAGE - Phân tích ngữ nghĩa
 # ═══════════════════════════════════════════════════════════
 
-BASE_SYSTEM_MESSAGE = """Bạn là chuyên gia đánh giá chatbot response cho hệ thống customer service.
+BASE_SYSTEM_MESSAGE = """Bạn là chuyên gia đánh giá chatbot response với khả năng phân tích ngữ nghĩa sâu.
+NHIỆM VỤ: Phân tích ý nghĩa thực sự của câu trả lời THỰC TẾ so với YÊU CẦU KỲ VỌNG.
+PHƯƠNG PHÁP:
+1. Hiểu ý nghĩa thực sự (semantic meaning), không chỉ từ khóa
+2. Phân tích ý định (intent) của câu hỏi và yêu cầu
+3. So sánh chi tiết: nội dung, cấu trúc, logic, tính đầy đủ
+4. Xem xét ngữ cảnh và mối quan hệ giữa các thành phần
+OUTPUT: JSON với verdict (PASSED/FAILED), reasoning chi tiết, error_desc, suggestion, suggested_response.
+TUYỆT ĐỐI KHÔNG dùng "Failed:", "Verdict:" ở đầu câu."""
 
-NHIỆM VỤ: So sánh câu trả lời THỰC TẾ với YÊU CẦU KỲ VỌNG và đưa ra đánh giá chi tiết.
+# ═══════════════════════════════════════════════════════════
+# SEMANTIC ANALYSIS FRAMEWORK
+# ═══════════════════════════════════════════════════════════
 
-🚫 CÁC TỪ TUYỆT ĐỐI CẤM:
-- "Failed:" / "FAILED:" (đặc biệt CẤM ở đầu câu)
-- "Verdict:" (bất kỳ dạng nào)
+SEMANTIC_ANALYSIS = """
+PHÂN TÍCH NGỮ NGHĨA (Semantic Analysis):
 
-✅ CÁCH VIẾT ĐÚNG:
-- ❌ SAI: "Failed: Thiếu thông tin"
-- ✅ ĐÚNG: "Thiếu thông tin"
+1. INTENT EXTRACTION (Trích xuất ý định):
+   - Ý định chính của câu hỏi là gì?
+   - Yêu cầu kỳ vọng muốn đạt được điều gì?
+   - Có ý định phụ hay ẩn không?
+
+2. SEMANTIC MAPPING (Ánh xạ ý nghĩa):
+   - Các khái niệm chính trong yêu cầu kỳ vọng
+   - Các khái niệm chính trong câu trả lời thực tế
+   - Mức độ trùng khớp về ý nghĩa (không chỉ từ khóa)
+   - VD: "CMND" ≈ "CCCD" (cùng ý nghĩa: giấy tờ tùy thân)
+
+3. COMPLETENESS CHECK (Kiểm tra tính đầy đủ):
+   - Tất cả khái niệm chính có được đề cập không?
+   - Có thiếu bước quan trọng nào không?
+   - Có thông tin thừa không cần thiết không?
+
+4. LOGICAL FLOW (Kiểm tra logic):
+   - Các bước/thông tin có được sắp xếp hợp lý không?
+   - Có mâu thuẫn logic nào không?
+   - Có liên kết nhân quả đúng không?
+
+5. ACCURACY VERIFICATION (Xác minh độ chính xác):
+   - Thông tin có đúng với kiến thức chuyên môn không?
+   - Có bịa hay sai sự thật không?
+   - Có sai nghiệp vụ không?
 """
 
 # ═══════════════════════════════════════════════════════════
-# GROUNDING REQUIREMENT - Bắt buộc trích dẫn
+# GROUNDING REQUIREMENT - Chi tiết hơn
 # ═══════════════════════════════════════════════════════════
 
 GROUNDING_REQUIREMENT = """
-═══════════════════════════════════════════════════════════
-YÊU CẦU TRÍCH DẪN (Grounding) - BẮT BUỘC
-═══════════════════════════════════════════════════════════
+TRÍCH DẪN & GROUNDING (Grounding):
+- Mọi đánh giá PHẢI dựa trên TRÍCH DẪN từ text
+- Phân tích ý nghĩa, không chỉ so khớp từ khóa
+- Format: Khái niệm | Kỳ vọng: "[trích dẫn]" | Thực tế: "[trích dẫn]" | Ý nghĩa: [phân tích] | Kết luận: ✓/✗/≈
 
-**NGUYÊN TẮC:** Mọi đánh giá PHẢI dựa trên TRÍCH DẪN CỤ THỂ từ text.
+VÍ DỤ PHÂN TÍCH NGỮ NGHĨA:
+- Khái niệm: Giấy tờ tùy thân
+  Kỳ vọng: "CMND"
+  Thực tế: "CCCD"
+  Ý nghĩa: Cả hai đều là giấy tờ tùy thân hợp lệ, CCCD là phiên bản mới của CMND
+  Kết luận: ✓ (tương đương về ý nghĩa)
 
-## CÁCH TRÍCH DẪN ĐÚNG:
-
-Thông tin: [Tên thông tin]
-├─ Trong KỲ VỌNG: "[Trích dẫn chính xác]"
-├─ Trong THỰC TẾ: "[Trích dẫn chính xác]" hoặc "KHÔNG CÓ"
-└─ Kết luận: ✓ Có / ✗ Không / ≈ Tương đương
-
-## VÍ DỤ:
-
-**✓ ĐÚNG (có trích dẫn):**
-Thông tin: Giấy tờ tùy thân
-├─ Trong KỲ VỌNG: "Cần CMND"
-├─ Trong THỰC TẾ: "Cần CCCD"
-└─ Kết luận: ≈ Tương đương (CMND = CCCD)
-
-**✗ SAI (không trích dẫn):**
-Thông tin: Giấy tờ tùy thân
-Kết luận: Có đề cập đến CMND
+- Khái niệm: Giấy xác nhận tình trạng hôn nhân
+  Kỳ vọng: "xác nhận độc thân"
+  Thực tế: "xác nhận chưa kết hôn"
+  Ý nghĩa: Cùng ý nghĩa, chỉ khác cách diễn đạt
+  Kết luận: ✓ (tương đương)
 """
 
 # ═══════════════════════════════════════════════════════════
-# FEW-SHOT EXAMPLES - Ví dụ cụ thể
+# FEW-SHOT EXAMPLES - Phân tích ngữ nghĩa
 # ═══════════════════════════════════════════════════════════
 
 FEW_SHOT_EXAMPLES = """
-═══════════════════════════════════════════════════════════
-VÍ DỤ ĐÁNH GIÁ (Few-shot Examples)
-═══════════════════════════════════════════════════════════
+VÍ DỤ PHÂN TÍCH NGỮ NGHĨA:
 
-**VÍ DỤ 1: PASSED - Cách diễn đạt khác nhưng đủ thông tin**
+1. PASSED - Tương đương về ý nghĩa:
+   Yêu cầu: "Cần CMND, sổ hộ khẩu, xác nhận độc thân"
+   Response: "Cần CCCD, giấy hộ khẩu, xác nhận chưa kết hôn"
+   Phân tích: CCCD ≈ CMND (giấy tờ tùy thân), giấy hộ khẩu ≈ sổ hộ khẩu (giấy tờ hộ gia đình), xác nhận chưa kết hôn ≈ xác nhận độc thân (tình trạng hôn nhân)
+   Kết luận: ✓ PASSED (3/3 khái niệm trùng khớp về ý nghĩa)
 
-Câu hỏi: "Thủ tục đăng ký kết hôn cần giấy tờ gì?"
-Kỳ vọng: "Cần CMND, sổ hộ khẩu, giấy xác nhận độc thân. Nộp tại UBND phường."
-Thực tế: "Dạ, anh cần chuẩn bị CCCD, giấy đăng ký hộ khẩu, xác nhận chưa kết hôn. Nộp hồ sơ tại Ủy ban nhân dân cấp xã nơi anh cư trú ạ."
+2. FAILED - Thiếu khái niệm quan trọng:
+   Yêu cầu: "Cần đơn, sổ đỏ, bản vẽ, CMND, lệ phí, thời gian xử lý"
+   Response: "Cần đơn, sổ đỏ, CMND"
+   Phân tích: Response chỉ đề cập 3/6 khái niệm chính. Thiếu: bản vẽ (tài liệu kỹ thuật), lệ phí (chi phí), thời gian xử lý (thông tin quan trọng)
+   Kết luận: ✗ FAILED (thiếu 50% thông tin quan trọng)
 
-Phân tích:
-- CMND ≈ CCCD ✓
-- Sổ hộ khẩu ≈ Giấy đăng ký hộ khẩu ✓
-- Xác nhận độc thân ≈ Xác nhận chưa kết hôn ✓
-- UBND phường ≈ UBND cấp xã ✓
-- Đạt 4/4 (100%) → PASSED
+3. FAILED - Sai ý nghĩa:
+   Yêu cầu: "Cần nộp hồ sơ tại Ủy ban nhân dân cấp xã"
+   Response: "Cần nộp hồ sơ tại Ủy ban nhân dân cấp huyện"
+   Phân tích: Sai cấp hành chính (xã vs huyện), điều này thay đổi ý nghĩa và hướng dẫn sai
+   Kết luận: ✗ FAILED (sai ý nghĩa quan trọng)
 
----
-
-**VÍ DỤ 2: FAILED - Thiếu thông tin quan trọng**
-
-Câu hỏi: "Thủ tục cấp giấy phép xây dựng cần gì?"
-Kỳ vọng: "Cần đơn xin phép, sổ đỏ, bản vẽ thiết kế, CMND. Lệ phí 500.000đ. Thời gian 15 ngày."
-Thực tế: "Bạn cần nộp đơn xin phép, sổ đỏ và CMND."
-
-Phân tích:
-- Đơn xin phép ✓
-- Sổ đỏ ✓
-- Bản vẽ thiết kế ✗ (THIẾU)
-- CMND ✓
-- Lệ phí ✗ (THIẾU)
-- Thời gian ✗ (THIẾU)
-- Đạt 3/6 (50%) → FAILED
-
----
-
-**VÍ DỤ 3: FAILED - Vi phạm từ khóa CẤM**
-
-Câu hỏi: "Thủ tục đăng ký xe máy cần gì?"
-Kỳ vọng: "Cần hóa đơn mua xe, CMND, giấy chứng nhận chất lượng."
-Từ khóa CẤM: "bảo hiểm, đăng kiểm"
-Thực tế: "Cần hóa đơn, CMND, giấy chất lượng, và bảo hiểm xe."
-
-Phân tích:
-- Thông tin đủ: 3/3 ✓
-- Từ khóa CẤM: "bảo hiểm" xuất hiện ✗
-- Vi phạm từ khóa cấm → FAILED
+4. FAILED - Từ khóa cấm xuất hiện:
+   Yêu cầu: "Không được đề cập đến bảo hiểm"
+   Response: "Bạn cần mua bảo hiểm nhân thọ để bảo vệ..."
+   Phân tích: Từ khóa cấm "bảo hiểm" xuất hiện, vi phạm yêu cầu
+   Kết luận: ✗ FAILED (vi phạm từ khóa cấm)
 """
 
 # ═══════════════════════════════════════════════════════════
@@ -110,159 +113,79 @@ Phân tích:
 # ═══════════════════════════════════════════════════════════
 
 CRITERIA_PROMPTS = {
-    "standard": {
-        "name": "Tiêu chí Chuẩn",
-        "focus": "Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s",
-        "system_instruction": """
-═══════════════════════════════════════════════════════════
-TIÊU CHÍ: CHUẨN (Cân bằng)
-═══════════════════════════════════════════════════════════
+    "goal_achievement": {
+        "name": "Goal Achievement",
+        "focus": "Đạt mục tiêu testcase",
+        "system_instruction": """TIÊU CHÍ: GOAL ACHIEVEMENT
+PHÂN TÍCH NGỮ NGHĨA:
+1. Trích xuất mục tiêu: Testcase muốn đạt được điều gì?
+2. Kiểm tra hoàn thành: Response có hoàn thành mục tiêu không?
+3. Kiểm tra hướng dẫn: Response có dẫn user tới bước tiếp theo không?
+4. Kiểm tra hiệu quả: Response có giúp user đạt mục tiêu không?
+5. Phân tích tính hiệu suất: Phản hồi có nhanh không?
 
-BẠN ĐÁNH GIÁ THEO TIÊU CHÍ CÂN BẰNG:
-- Nội dung: ≥90% thông tin kỳ vọng
-- Giọng điệu: Lịch sự, tôn trọng (không bắt buộc xưng hô)
-- Thời gian: ≤3s là tốt
-
-QUYẾT ĐỊNH:
-- PASSED: ≥90% thông tin + không vi phạm keywords + giọng điệu lịch sự
-- FAILED: <90% thông tin HOẶC vi phạm keywords HOẶC giọng điệu thô lỗ
-
-CÁCH VIẾT REASONING:
-1. Liệt kê tất cả thông tin trong kỳ vọng
-2. Kiểm tra từng thông tin có trong response không
-3. Tính % = (có / tổng) × 100
-4. Kiểm tra keywords
-5. Đánh giá giọng điệu
-6. Quyết định PASSED/FAILED với lý do cụ thể
-""",
-        "error_focus": "Tập trung vào thông tin thiếu/sai và cách sửa",
-        "suggestion_style": "Đề xuất cách bổ sung thông tin thiếu một cách tự nhiên"
+PASSED: Hoàn thành mục tiêu, dẫn user tiếp theo, hiệu quả cao
+FAILED: Không hoàn thành mục tiêu, không dẫn user, hoặc không hiệu quả"""
     },
     
-    "strict": {
-        "name": "Tiêu chí Nghiêm ngặt",
-        "focus": "Yêu cầu cao: ≥95% thông tin, giọng điệu tự nhiên + xưng hô, thời gian ≤2s",
-        "system_instruction": """
-═══════════════════════════════════════════════════════════
-TIÊU CHÍ: NGHIÊM NGẶT (Yêu cầu cao)
-═══════════════════════════════════════════════════════════
+    "semantic_correctness": {
+        "name": "Semantic Correctness",
+        "focus": "Đúng nghĩa & đúng intent",
+        "system_instruction": """TIÊU CHÍ: SEMANTIC CORRECTNESS
+PHÂN TÍCH NGỮ NGHĨA:
+1. Trích xuất intent: Mục đích thực sự của câu hỏi là gì?
+2. Phân tích ngữ cảnh: Có thông tin ngữ cảnh từ scenario không?
+3. Kiểm tra hiểu biết: Bot có hiểu đúng intent không?
+4. Kiểm tra ý nghĩa: Response có đúng ý nghĩa không?
+5. Kiểm tra phù hợp: Response có phù hợp với intent không?
 
-BẠN ĐÁNH GIÁ THEO TIÊU CHÍ NGHIÊM NGẶT:
-- Nội dung: ≥95% thông tin kỳ vọng (yêu cầu cao)
-- Giọng điệu: PHẢI có xưng hô + lịch sự + tự nhiên
-- Thời gian: ≤2s là tốt, >3s là FAILED
-
-QUYẾT ĐỊNH:
-- PASSED: ≥95% thông tin + ≤3s + có xưng hô + không vi phạm keywords
-- FAILED: <95% thông tin HOẶC >3s HOẶC thiếu xưng hô HOẶC vi phạm keywords
-
-CÁCH VIẾT REASONING:
-1. Liệt kê tất cả thông tin trong kỳ vọng (chi tiết)
-2. Kiểm tra từng thông tin có trong response không
-3. Tính % = (có / tổng) × 100
-4. Kiểm tra thời gian (bắt buộc ≤3s)
-5. Kiểm tra xưng hô (bắt buộc có)
-6. Kiểm tra keywords
-7. Quyết định PASSED/FAILED với lý do cụ thể
-8. Ghi nhận BẤT KỲ lỗi nhỏ nào
-""",
-        "error_focus": "Ghi nhận chi tiết mọi lỗi, kể cả lỗi nhỏ",
-        "suggestion_style": "Đề xuất cách sửa từng lỗi một cách cụ thể"
+PASSED: Hiểu đúng intent, ý nghĩa đúng, phù hợp với yêu cầu
+FAILED: Hiểu sai intent, ý nghĩa sai, hoặc không phù hợp"""
     },
     
-    "speed-focused": {
-        "name": "Tiêu chí Tốc độ",
-        "focus": "Ưu tiên nhanh: thời gian ≤2s (bắt buộc), ≥80% thông tin",
-        "system_instruction": """
-═══════════════════════════════════════════════════════════
-TIÊU CHÍ: TỐC ĐỘ (Ưu tiên nhanh)
-═══════════════════════════════════════════════════════════
+    "conversation_quality": {
+        "name": "Conversation Quality",
+        "focus": "Tự nhiên & hữu ích",
+        "system_instruction": """TIÊU CHÍ: CONVERSATION QUALITY
+PHÂN TÍCH NGỮ NGHĨA:
+1. Phân tích giọng điệu: Giọng có tự nhiên không? Có máy móc không?
+2. Kiểm tra lịch sự: Có lịch sự, tôn trọng không? Có thô lỗ không?
+3. Kiểm tra xưng hô: Xưng hô có đúng không? Có phù hợp với ngữ cảnh không?
+4. Kiểm tra tính dễ hiểu: Câu văn có rõ ràng không? Có khó hiểu không?
+5. Kiểm tra tính hữu ích: Response có hữu ích cho user không?
 
-BẠN ĐÁNH GIÁ THEO TIÊU CHÍ TỐC ĐỘ:
-- Thời gian: ≤2s là bắt buộc (FAILED nếu >2s)
-- Nội dung: ≥80% thông tin kỳ vọng (yêu cầu thấp hơn)
-- Giọng điệu: KHÔNG đánh giá
-
-QUYẾT ĐỊNH:
-- PASSED: ≤2s + ≥80% thông tin + không vi phạm keywords
-- FAILED: >2s HOẶC <80% thông tin HOẶC vi phạm keywords
-
-CÁCH VIẾT REASONING:
-1. Kiểm tra thời gian TRƯỚC (bắt buộc ≤2s)
-2. Nếu >2s → FAILED ngay (không cần kiểm tra nội dung)
-3. Nếu ≤2s → Kiểm tra nội dung
-4. Liệt kê thông tin trong kỳ vọng
-5. Kiểm tra từng thông tin có trong response không
-6. Tính % = (có / tổng) × 100
-7. Kiểm tra keywords
-8. Quyết định PASSED/FAILED với lý do cụ thể
-9. KHÔNG ghi nhận vấn đề giọng điệu
-""",
-        "error_focus": "Tập trung vào thời gian quá chậm hoặc thông tin thiếu",
-        "suggestion_style": "Đề xuất cách trả lời nhanh hơn hoặc bổ sung thông tin thiếu"
+PASSED: Giọng tự nhiên, lịch sự, dễ hiểu, hữu ích
+FAILED: Giọng máy móc, thô lỗ, khó hiểu, hoặc không hữu ích"""
     },
     
-    "content-only": {
-        "name": "Tiêu chí Nội dung",
-        "focus": "Chỉ độ chính xác: ≥95% thông tin, bỏ qua thời gian & giọng điệu",
-        "system_instruction": """
-═══════════════════════════════════════════════════════════
-TIÊU CHÍ: NỘI DUNG (Chỉ độ chính xác)
-═══════════════════════════════════════════════════════════
+    "context_consistency": {
+        "name": "Context Consistency",
+        "focus": "Logic xuyên suốt",
+        "system_instruction": """TIÊU CHÍ: CONTEXT CONSISTENCY
+PHÂN TÍCH NGỮ NGHĨA:
+1. Kiểm tra logic: Các bước/thông tin có được sắp xếp hợp lý không?
+2. Kiểm tra mâu thuẫn: Có mâu thuẫn logic nào không?
+3. Kiểm tra liên kết: Có liên kết nhân quả đúng không?
+4. Kiểm tra nhất quán: Response có nhất quán với scenario không?
+5. Kiểm tra memory: Bot có nhớ thông tin trước đó không?
 
-BẠN ĐÁNH GIÁ THEO TIÊU CHÍ NỘI DUNG:
-- Nội dung: ≥95% thông tin kỳ vọng (yêu cầu cao)
-- Thời gian: KHÔNG đánh giá
-- Giọng điệu: KHÔNG đánh giá
-
-QUYẾT ĐỊNH:
-- PASSED: ≥95% thông tin + không vi phạm keywords
-- FAILED: <95% thông tin HOẶC vi phạm keywords
-
-CÁCH VIẾT REASONING:
-1. Liệt kê tất cả thông tin trong kỳ vọng
-2. Kiểm tra từng thông tin có trong response không
-3. Tính % = (có / tổng) × 100
-4. Kiểm tra keywords
-5. Quyết định PASSED/FAILED với lý do cụ thể
-6. KHÔNG ghi nhận vấn đề thời gian
-7. KHÔNG ghi nhận vấn đề giọng điệu
-8. CHỈ tập trung vào độ chính xác nội dung
-""",
-        "error_focus": "Tập trung vào thông tin sai/thiếu, bỏ qua thời gian & giọng",
-        "suggestion_style": "Đề xuất cách sửa thông tin sai/thiếu"
+PASSED: Logic rõ ràng, không mâu thuẫn, nhất quán, nhớ context
+FAILED: Logic sai, có mâu thuẫn, không nhất quán, hoặc quên context"""
     },
     
-    "ux-focused": {
-        "name": "Tiêu chí Trải nghiệm",
-        "focus": "Ưu tiên thân thiện: giọng điệu + xưng hô (bắt buộc), ≥85% thông tin",
-        "system_instruction": """
-═══════════════════════════════════════════════════════════
-TIÊU CHÍ: TRẢI NGHIỆM (Ưu tiên thân thiện)
-═══════════════════════════════════════════════════════════
+    "safety_compliance": {
+        "name": "Safety & Compliance",
+        "focus": "Không vi phạm",
+        "system_instruction": """TIÊU CHÍ: SAFETY & COMPLIANCE
+PHÂN TÍCH NGỮ NGHĨA:
+1. Kiểm tra từ khóa cấm: Từ khóa cấm có xuất hiện không?
+2. Kiểm tra từ khóa bắt buộc: Từ khóa bắt buộc có xuất hiện không?
+3. Kiểm tra độ chính xác: Thông tin có đúng không? Có bịa không?
+4. Kiểm tra sai nghiệp vụ: Có sai nghiệp vụ không?
+5. Kiểm tra an toàn: Response có an toàn không? Có gây hại không?
 
-BẠN ĐÁNH GIÁ THEO TIÊU CHÍ TRẢI NGHIỆM:
-- Giọng điệu: PHẢI có xưng hô + lịch sự + thân thiện (bắt buộc)
-- Nội dung: ≥85% thông tin kỳ vọng
-- Thời gian: ≤3s là tốt (không bắt buộc)
-
-QUYẾT ĐỊNH:
-- PASSED: Có xưng hô + lịch sự + ≥85% thông tin + không vi phạm keywords
-- FAILED: Thiếu xưng hô HOẶC thô lỗ HOẶC <85% thông tin HOẶC vi phạm keywords
-
-CÁCH VIẾT REASONING:
-1. Kiểm tra giọng điệu TRƯỚC (bắt buộc có xưng hô)
-2. Nếu thiếu xưng hô hoặc thô lỗ → FAILED ngay
-3. Nếu giọng điệu OK → Kiểm tra nội dung
-4. Liệt kê thông tin trong kỳ vọng
-5. Kiểm tra từng thông tin có trong response không
-6. Tính % = (có / tổng) × 100
-7. Kiểm tra keywords
-8. Quyết định PASSED/FAILED với lý do cụ thể
-9. Ghi nhận điểm tích cực về giọng điệu (nếu tốt)
-""",
-        "error_focus": "Tập trung vào giọng điệu (xưng hô, thân thiện) và thông tin thiếu",
-        "suggestion_style": "Đề xuất cách trả lời thân thiện hơn + bổ sung thông tin thiếu"
+PASSED: Không vi phạm, đúng thông tin, an toàn
+FAILED: Vi phạm từ khóa, sai thông tin, hoặc không an toàn"""
     }
 }
 
@@ -275,25 +198,39 @@ def create_advanced_judge_prompt(
     expected: str,
     actual: str,
     time_label: str,
-    criteria: str = "standard",
+    criteria: str = "goal_achievement",
     required_keywords: str = None,
-    forbidden_keywords: str = None
+    forbidden_keywords: str = None,
+    inject_knowledge: bool = True
 ) -> str:
     """
-    Tạo prompt động cho judge dựa trên tiêu chí
+    Tạo prompt động cho judge với phân tích ngữ nghĩa sâu
+    
+    Phương pháp phân tích:
+    1. Trích xuất ý định (Intent Extraction)
+    2. Phân tách khái niệm (Concept Decomposition)
+    3. Ánh xạ ý nghĩa (Semantic Mapping)
+    4. Kiểm tra tính đầy đủ (Completeness Check)
+    5. Kiểm tra logic (Logic Verification)
+    6. Xác minh độ chính xác (Accuracy Verification)
+    7. Kiểm tra từ khóa (Keyword Check)
     
     Args:
         question: Câu hỏi
         expected: Yêu cầu kỳ vọng
         actual: Câu trả lời thực tế
         time_label: Thời gian (VD: "2000ms")
-        criteria: Tiêu chí (standard/strict/speed-focused/content-only/ux-focused)
+        criteria: Tiêu chí (accuracy/completeness/context_understanding/conversation_experience/performance_goal)
         required_keywords: Từ khóa bắt buộc
         forbidden_keywords: Từ khóa cấm
+        inject_knowledge: Có inject knowledge base không (default: True)
+    
+    Returns:
+        Prompt string cho LLM Judge
     """
     
     # Get criteria-specific config
-    criteria_config = CRITERIA_PROMPTS.get(criteria, CRITERIA_PROMPTS["standard"])
+    criteria_config = CRITERIA_PROMPTS.get(criteria, CRITERIA_PROMPTS["goal_achievement"])
     
     # Build keywords section
     keywords_section = ""
@@ -302,94 +239,239 @@ def create_advanced_judge_prompt(
     if forbidden_keywords:
         keywords_section += f"\n**Từ khóa CẤM:** {forbidden_keywords}"
     
+    # Inject knowledge base (if enabled)
+    knowledge_section = ""
+    if inject_knowledge:
+        try:
+            from knowledge import search_relevant_knowledge
+            knowledge_text = search_relevant_knowledge(question, top_k=2)
+            if knowledge_text and "Không tìm thấy" not in knowledge_text:
+                knowledge_section = f"\n\nKNOWLEDGE BASE:\n{knowledge_text}\n"
+        except Exception as e:
+            print(f"⚠️ Failed to inject knowledge: {str(e)}")
+            knowledge_section = ""
+    
     # Build the complete prompt
     prompt = f"""{BASE_SYSTEM_MESSAGE}
+
+{SEMANTIC_ANALYSIS}
 
 {GROUNDING_REQUIREMENT}
 
 {FEW_SHOT_EXAMPLES}
 
 {criteria_config['system_instruction']}
-
+{knowledge_section}
 ═══════════════════════════════════════════════════════════
-DỮ LIỆU CẦN ĐÁNH GIÁ
+DỮ LIỆU
 ═══════════════════════════════════════════════════════════
-
-**Câu hỏi:** {question}
-
-**Yêu cầu kỳ vọng:** {expected}
+Câu hỏi: {question}
+Kỳ vọng: {expected}
 {keywords_section}
-
-**Thực tế:** {actual}
-
-**Thời gian:** {time_label}
+Thực tế: {actual}
+Thời gian: {time_label}
 
 ═══════════════════════════════════════════════════════════
-YÊU CẦU OUTPUT (JSON)
+HƯỚNG DẪN PHÂN TÍCH CHI TIẾT (8 BƯỚC)
 ═══════════════════════════════════════════════════════════
 
-Trả về JSON với các trường:
+1. TRÍCH XUẤT Ý ĐỊNH (Intent Extraction):
+   - Ý định chính của câu hỏi là gì? (Mô tả chi tiết)
+   - Yêu cầu kỳ vọng muốn đạt được điều gì? (Mô tả chi tiết)
+   - Có ý định phụ hay ẩn không? (Nếu có, liệt kê)
+   - Mục tiêu cuối cùng là gì?
 
-1. **reasoning**: Suy luận chi tiết theo hướng dẫn của tiêu chí
-   - Làm theo đúng "CÁCH VIẾT REASONING" ở trên
-   - Phải cụ thể, có trích dẫn, có số liệu
+2. PHÂN TÁCH KHÁI NIỆM (Concept Decomposition):
+   - Chia yêu cầu thành các khái niệm/thành phần chính (liệt kê từng cái)
+   - Chia response thành các khái niệm/thành phần chính (liệt kê từng cái)
+   - Xác định khái niệm nào là quan trọng (critical), nào là phụ (minor)
+   - Tổng số khái niệm chính: X
 
-2. **verdict**: "PASSED" hoặc "FAILED"
+3. ÁNH XẠ Ý NGHĨA (Semantic Mapping):
+   - So sánh từng khái niệm giữa yêu cầu và response (chi tiết từng cái)
+   - Phân tích ý nghĩa thực sự (không chỉ từ khóa)
+   - Xác định mức độ trùng khớp: ✓ (đầy đủ), ≈ (tương đương), ✗ (thiếu/sai)
+   - Giải thích tại sao là ✓/≈/✗ (có trích dẫn)
+   - VD: "CMND" ≈ "CCCD" (cùng ý nghĩa: giấy tờ tùy thân, CCCD là phiên bản mới)
 
-3. **confidence_level**: 0.0-1.0 (độ tự tin)
+4. KIỂM TRA TÍNH ĐẦY ĐỦ (Completeness Check):
+   - Tất cả khái niệm chính có được đề cập không? (liệt kê từng cái)
+   - Khái niệm nào thiếu? (nếu có, liệt kê)
+   - Có thiếu bước quan trọng nào không? (nếu có, mô tả)
+   - Có thông tin thừa không cần thiết không? (nếu có, liệt kê)
+   - Tính toán: (số khái niệm đúng / tổng số khái niệm) × 100% = X%
 
-4. **needs_human_review**: true/false
+5. KIỂM TRA LOGIC (Logic Verification):
+   - Các bước/thông tin có được sắp xếp hợp lý không? (mô tả)
+   - Có mâu thuẫn logic nào không? (nếu có, liệt kê)
+   - Có liên kết nhân quả đúng không? (phân tích)
+   - Thứ tự các bước có hợp lý không? (mô tả)
 
-5. **confidence_reason**: Lý do về độ tự tin
+6. XÁC MINH ĐỘ CHÍNH XÁC (Accuracy Verification):
+   - Thông tin có đúng với kiến thức chuyên môn không? (chi tiết từng thông tin)
+   - Có bịa hay sai sự thật không? (nếu có, liệt kê)
+   - Có sai nghiệp vụ không? (nếu có, mô tả)
+   - Có mâu thuẫn với knowledge base không? (nếu có, liệt kê)
 
-6. **errors**: Array các lỗi (nếu có)
-   - description: Mô tả lỗi
-   - severity: "Critical" / "Major" / "Minor"
-   - quote: Trích dẫn phần sai
+7. KIỂM TRA TỪ KHÓA (Keyword Check):
+   - Từ khóa BẮT BUỘC có xuất hiện không? (liệt kê từng cái)
+   - Từ khóa CẤM có xuất hiện không? (nếu có, liệt kê)
+   - Có từ khóa tương đương không? (nếu có, liệt kê)
 
-7. **error_desc**: Nhận xét lỗi (nếu FAILED)
-   - Nếu PASSED → ""
-   - Nếu FAILED → Mô tả tự nhiên, KHÔNG liệt kê dạng "thiếu X/Y"
-   - Focus: {criteria_config['error_focus']}
-
-8. **suggestion**: Gợi ý cải thiện (nếu FAILED)
-   - Nếu PASSED → ""
-   - Nếu FAILED → Gợi ý cụ thể
-   - Style: {criteria_config['suggestion_style']}
-
-9. **suggested_response**: Mẫu response đã sửa (nếu FAILED)
-   - Nếu PASSED → ""
-   - Nếu FAILED → Response hoàn chỉnh, có thể copy-paste
-
-10. **tone_note**: Nhận xét giọng điệu
-    - Nếu tốt → ""
-    - Nếu có vấn đề → Mô tả cụ thể
-    - Tiêu chí {criteria}: {('Bắt buộc kiểm tra' if criteria in ['strict', 'ux-focused'] else 'Không bắt buộc')}
-
-11. **time_verdict**: "good" / "ok" / "slow"
-    - Tiêu chí {criteria}: {('Bắt buộc ≤2s' if criteria == 'speed-focused' else ('Bắt buộc ≤3s' if criteria in ['standard', 'ux-focused'] else 'Không đánh giá'))}
-
-12. **time_note**: Nhận xét thời gian
+8. KẾT LUẬN (Conclusion):
+   - Dựa trên phân tích trên, verdict là gì? (PASSED/FAILED)
+   - Mức độ tự tin là bao nhiêu? (0.0-1.0)
+   - Tại sao có mức độ tự tin này? (giải thích)
+   - Có cần human review không? (true/false + lý do)
 
 ═══════════════════════════════════════════════════════════
-LƯU Ý QUAN TRỌNG
+OUTPUT (JSON - CHI TIẾT)
+═══════════════════════════════════════════════════════════
+{{
+  "intent_analysis": {{
+    "main_intent": "Ý định chính của câu hỏi",
+    "expected_goal": "Mục tiêu của yêu cầu kỳ vọng",
+    "hidden_intent": "Ý định ẩn (nếu có)"
+  }},
+  
+  "concept_analysis": {{
+    "expected_concepts": ["khái niệm 1", "khái niệm 2", ...],
+    "actual_concepts": ["khái niệm 1", "khái niệm 2", ...],
+    "critical_concepts": ["khái niệm quan trọng 1", ...],
+    "total_concepts": X
+  }},
+  
+  "semantic_mapping": {{
+    "mappings": [
+      {{
+        "concept": "tên khái niệm",
+        "expected": "trích dẫn từ yêu cầu",
+        "actual": "trích dẫn từ response",
+        "match_level": "✓/≈/✗",
+        "explanation": "giải thích chi tiết"
+      }},
+      ...
+    ],
+    "completeness_percentage": X%
+  }},
+  
+  "logic_analysis": {{
+    "is_logical": true/false,
+    "issues": ["vấn đề logic 1", "vấn đề logic 2", ...],
+    "flow_description": "Mô tả luồng logic"
+  }},
+  
+  "accuracy_analysis": {{
+    "is_accurate": true/false,
+    "errors": [
+      {{
+        "type": "sai thông tin/bịa/sai nghiệp vụ",
+        "description": "Mô tả chi tiết",
+        "quote": "trích dẫn từ response",
+        "severity": "Critical/Major/Minor"
+      }},
+      ...
+    ]
+  }},
+  
+  "keyword_analysis": {{
+    "required_keywords": {{"keyword": "status (found/missing)"}},
+    "forbidden_keywords": {{"keyword": "status (found/not found)"}},
+    "equivalent_keywords": ["từ khóa tương đương 1", ...]
+  }},
+  
+  "reasoning": "Chi tiết suy luận từng bước (phải cụ thể, có trích dẫn, có phân tích ý nghĩa, có %)",
+  "verdict": "PASSED hoặc FAILED",
+  "confidence_level": 0.0-1.0,
+  "needs_human_review": true/false,
+  "confidence_reason": "Lý do về độ tự tin (2-3 câu chi tiết)",
+  
+  "error_desc": "Mô tả lỗi chi tiết (nếu FAILED, nếu PASSED để trống)",
+  "suggestion": "Gợi ý cải thiện cụ thể (nếu FAILED, nếu PASSED để trống)",
+  "suggested_response": "Response đã sửa (nếu FAILED, nếu PASSED để trống)",
+  
+  "tone_note": "Nhận xét giọng điệu (nếu có vấn đề, nếu tốt để trống)",
+  "time_verdict": "good/ok/slow",
+  "time_note": "Nhận xét thời gian"
+}}
+
+═══════════════════════════════════════════════════════════
+HƯỚNG DẪN VIẾT OUTPUT CHI TIẾT
 ═══════════════════════════════════════════════════════════
 
-✅ PHẢI LÀM:
-- Áp dụng ĐÚNG tiêu chí: {criteria_config['name']}
-- Viết reasoning theo hướng dẫn của tiêu chí
-- Trích dẫn cụ thể từ text
-- Tính % thông tin chính xác
-- Ghi nhận chi tiết lỗi (nếu có)
+INTENT ANALYSIS:
+- main_intent: Mô tả rõ ý định chính (1-2 câu)
+- expected_goal: Mục tiêu cụ thể của yêu cầu (1-2 câu)
+- hidden_intent: Ý định ẩn nếu có (nếu không có để null)
 
-🚫 TUYỆT ĐỐI KHÔNG:
-- Dùng "Failed:", "Verdict:", "PASSED/FAILED" trong error_desc/suggestion
-- Khen ngợi trong tone_note
-- Để trống error_desc/suggestion khi verdict=FAILED
-- Đánh giá những yếu tố không liên quan đến tiêu chí
+CONCEPT ANALYSIS:
+- expected_concepts: Liệt kê tất cả khái niệm từ yêu cầu
+- actual_concepts: Liệt kê tất cả khái niệm từ response
+- critical_concepts: Liệt kê khái niệm quan trọng
+- total_concepts: Tổng số khái niệm chính
 
-**TIÊU CHÍ ĐƯỢC CHỌN: {criteria_config['name']}**
-**FOCUS: {criteria_config['focus']}**
+SEMANTIC MAPPING:
+- mappings: Liệt kê chi tiết từng khái niệm
+  - concept: Tên khái niệm
+  - expected: Trích dẫn từ yêu cầu
+  - actual: Trích dẫn từ response
+  - match_level: ✓ (đầy đủ), ≈ (tương đương), ✗ (thiếu/sai)
+  - explanation: Giải thích tại sao là ✓/≈/✗
+- completeness_percentage: Tính toán (số khái niệm đúng / tổng) × 100%
+
+LOGIC ANALYSIS:
+- is_logical: true/false
+- issues: Liệt kê các vấn đề logic (nếu có)
+- flow_description: Mô tả luồng logic của response
+
+ACCURACY ANALYSIS:
+- is_accurate: true/false
+- errors: Liệt kê chi tiết từng lỗi
+  - type: Loại lỗi (sai thông tin/bịa/sai nghiệp vụ)
+  - description: Mô tả chi tiết
+  - quote: Trích dẫn từ response
+  - severity: Critical/Major/Minor
+
+KEYWORD ANALYSIS:
+- required_keywords: Từ khóa bắt buộc và trạng thái (found/missing)
+- forbidden_keywords: Từ khóa cấm và trạng thái (found/not found)
+- equivalent_keywords: Từ khóa tương đương (nếu có)
+
+REASONING:
+- Liệt kê từng khái niệm
+- Phân tích ý nghĩa từng khái niệm
+- So sánh chi tiết
+- Tính toán %
+- Quyết định verdict
+
+ERROR_DESC:
+- Mô tả tự nhiên, cụ thể, có trích dẫn
+- KHÔNG liệt kê "thiếu X/Y"
+- Mô tả tác động của lỗi
+
+SUGGESTION:
+- Gợi ý cụ thể cách sửa
+- Có thể copy-paste
+- Giải thích tại sao nên sửa như vậy
+
+SUGGESTED_RESPONSE:
+- Response hoàn chỉnh, có thể copy-paste trực tiếp
+- Áp dụng tất cả gợi ý
+- Đảm bảo đúng yêu cầu
+
+TONE_NOTE:
+- CHỈ ghi vấn đề, KHÔNG khen ngợi
+- Mô tả cụ thể vấn đề giọng điệu
+- Gợi ý cách cải thiện
+
+TIME_NOTE:
+- Mô tả cụ thể về thời gian
+- So sánh với yêu cầu
+- Gợi ý cách cải thiện nếu cần
+
+TUYỆT ĐỐI KHÔNG dùng "Failed:", "Verdict:" trong error_desc/suggestion
+
+TIÊU CHÍ: {criteria_config['name']} | FOCUS: {criteria_config['focus']}
 """
     
     return prompt
@@ -397,4 +479,9 @@ LƯU Ý QUAN TRỌNG
 
 def get_criteria_info(criteria: str) -> dict:
     """Lấy thông tin tiêu chí"""
-    return CRITERIA_PROMPTS.get(criteria, CRITERIA_PROMPTS["standard"])
+    return CRITERIA_PROMPTS.get(criteria, CRITERIA_PROMPTS["goal_achievement"])
+
+
+def get_semantic_analysis_guide() -> str:
+    """Lấy hướng dẫn phân tích ngữ nghĩa"""
+    return SEMANTIC_ANALYSIS

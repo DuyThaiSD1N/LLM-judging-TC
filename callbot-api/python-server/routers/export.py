@@ -60,11 +60,11 @@ async def export_testcases(request: ExportRequest):
         
         # Criteria names mapping
         criteria_names = {
-            "standard": "Chuẩn",
-            "strict": "Nghiêm ngặt",
-            "speed-focused": "Tốc độ",
-            "content-only": "Nội dung",
-            "ux-focused": "Trải nghiệm"
+            "goal_achievement": "Đạt mục tiêu",
+            "semantic_correctness": "Đúng nghĩa & intent",
+            "conversation_quality": "Chất lượng hội thoại",
+            "context_consistency": "Tính nhất quán",
+            "safety_compliance": "An toàn & Tuân thủ"
         }
         
         # Data rows - xử lý dict thay vì object

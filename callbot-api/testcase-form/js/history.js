@@ -472,7 +472,7 @@ async function exportSelectedHistory() {
         name: run.testcase_name,
         executor: run.executor || null,  // NEW
         group: run.group_type || 'GENERAL',
-        criteria: run.details[0]?.criteria || 'standard',
+        criteria: run.details[0]?.criteria || 'goal_achievement',
         bot_url: null,
         run_at: run.run_at, // Include run time
         turns: run.details.map(turn => ({

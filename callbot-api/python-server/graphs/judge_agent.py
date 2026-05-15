@@ -11,7 +11,6 @@ from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langsmith import traceable
 
-from prompts.simple_prompt import create_simple_judge_prompt
 from prompts.advanced_prompt import create_advanced_judge_prompt
 
 
@@ -161,7 +160,7 @@ class JudgeAgent:
         expected: str,
         actual: str,
         response_time_ms: int,
-        criteria: str = "standard",
+        criteria: str = "goal_achievement",
         required_keywords: str = None,
         forbidden_keywords: str = None
     ) -> Dict[str, Any]:
@@ -192,7 +191,8 @@ class JudgeAgent:
             time_label=time_label,
             criteria=criteria,  # Pass criteria to get dynamic prompt
             required_keywords=required_keywords,
-            forbidden_keywords=forbidden_keywords
+            forbidden_keywords=forbidden_keywords,
+            inject_knowledge=True  # ← Enable knowledge base injection
         )
         
         # Retry logic với exponential backoff

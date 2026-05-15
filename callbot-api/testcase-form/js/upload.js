@@ -96,7 +96,7 @@ async function handleFile(file) {
         // Thêm criteria mặc định nếu không có
         const listWithCriteria = list.map(tc => ({
             ...tc,
-            criteria: tc.criteria || 'standard'
+            criteria: tc.criteria || 'goal_achievement'
         }));
 
         console.log('➕ Adding testcases to table...');

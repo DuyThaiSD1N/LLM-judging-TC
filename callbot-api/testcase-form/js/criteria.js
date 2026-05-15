@@ -3,7 +3,7 @@
 import { API_ENDPOINTS, API_KEY } from './config.js';
 
 let criteriaList = [];
-let selectedCriteria = 'standard';
+let selectedCriteria = 'goal_achievement';
 
 export function initCriteria() {
     loadCriteriaList();
@@ -34,11 +34,11 @@ async function loadCriteriaList() {
         if (criteriaList.length === 0) {
             console.warn('⚠️ No criteria returned from API, using fallback');
             criteriaList = [
-                { id: 'standard', name: 'Tiêu chí Chuẩn', description: 'Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s' },
-                { id: 'strict', name: 'Tiêu chí Nghiêm ngặt', description: 'Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s' },
-                { id: 'speed-focused', name: 'Tiêu chí Tốc độ', description: 'Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin' },
-                { id: 'content-only', name: 'Tiêu chí Nội dung', description: 'Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu' },
-                { id: 'ux-focused', name: 'Tiêu chí Trải nghiệm', description: 'Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin' }
+                { id: 'goal_achievement', name: 'Đạt mục tiêu', description: 'Đạt mục tiêu testcase' },
+                { id: 'semantic_correctness', name: 'Đúng nghĩa & intent', description: 'Đúng nghĩa & đúng intent' },
+                { id: 'conversation_quality', name: 'Chất lượng hội thoại', description: 'Tự nhiên & hữu ích' },
+                { id: 'context_consistency', name: 'Tính nhất quán', description: 'Logic xuyên suốt' },
+                { id: 'safety_compliance', name: 'An toàn & Tuân thủ', description: 'Không vi phạm' }
             ];
         }
 
@@ -48,11 +48,11 @@ async function loadCriteriaList() {
         console.error('❌ Failed to load criteria:', err);
         // Fallback to default
         criteriaList = [
-            { id: 'standard', name: 'Tiêu chí Chuẩn', description: 'Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s' },
-            { id: 'strict', name: 'Tiêu chí Nghiêm ngặt', description: 'Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s' },
-            { id: 'speed-focused', name: 'Tiêu chí Tốc độ', description: 'Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin' },
-            { id: 'content-only', name: 'Tiêu chí Nội dung', description: 'Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu' },
-            { id: 'ux-focused', name: 'Tiêu chí Trải nghiệm', description: 'Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin' }
+            { id: 'goal_achievement', name: 'Đạt mục tiêu', description: 'Đạt mục tiêu testcase' },
+            { id: 'semantic_correctness', name: 'Đúng nghĩa & intent', description: 'Đúng nghĩa & đúng intent' },
+            { id: 'conversation_quality', name: 'Chất lượng hội thoại', description: 'Tự nhiên & hữu ích' },
+            { id: 'context_consistency', name: 'Tính nhất quán', description: 'Logic xuyên suốt' },
+            { id: 'safety_compliance', name: 'An toàn & Tuân thủ', description: 'Không vi phạm' }
         ];
         populateDropdown();
     }
@@ -63,7 +63,7 @@ function populateDropdown() {
 
     popup.innerHTML = criteriaList.map(c => `
         <input type="radio" name="criteria" id="criteria-${c.id}" value="${c.id}" 
-               class="criteria-radio" ${c.id === 'standard' ? 'checked' : ''} />
+               class="criteria-radio" ${c.id === 'goal_achievement' ? 'checked' : ''} />
         <label for="criteria-${c.id}" class="criteria-option">
             <div class="criteria-name">${c.name}</div>
             <div class="criteria-desc">${c.description}</div>
