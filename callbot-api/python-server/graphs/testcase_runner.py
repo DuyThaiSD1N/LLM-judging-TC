@@ -105,9 +105,18 @@ async def call_bot(conversation_id: str, message: str, bot_url: str) -> Dict[str
         raise Exception(f"Callbot returned HTTP {response.status_code}")
 
     raw = response.text.strip()
-    parts = raw.split("|")
-    action = parts[-1].strip()
-    answer = "|".join(parts[:-1]).strip()
+    try:
+        data = response.json()
+    except ValueError:
+        data = None
+
+    if isinstance(data, dict):
+        answer = str(data.get("content") or data.get("answer") or data.get("message") or "")
+        action = str(data.get("action") or "")
+    else:
+        parts = raw.split("|")
+        action = parts[-1].strip() if len(parts) > 1 else ""
+        answer = "|".join(parts[:-1]).strip() if len(parts) > 1 else raw
 
     print(f"[callBot] ← answer={answer[:50]}..., action={action}, time={response_time_ms}ms")
 
@@ -385,7 +394,7 @@ async def run_testcase(
     name: str,
     group: str,
     turns: List[Dict[str, str]],
-    criteria: str = "standard",
+    criteria: str = "goal_achievement",
     bot_url: Optional[str] = None,
     executor: Optional[str] = None  # NEW: Người thực hiện
 ) -> Dict[str, Any]:

@@ -246,7 +246,7 @@ export async function runSingle(idx) {
                 code: tc.code,
                 group: tc.group,
                 turns: tc.turns,
-                criteria: tc.criteria || 'standard',
+                criteria: tc.criteria || 'goal_achievement',
                 bot_url: tc.bot_url || null,
                 executor: tc.executor || null  // NEW
             }),

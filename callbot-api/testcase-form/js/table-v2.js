@@ -140,7 +140,7 @@ function initRow(tc) {
     name: tc.name,
     group: tc.group,
     executor: tc.executor || null,  // NEW: Người thực hiện
-    criteria: tc.criteria || 'standard',
+    criteria: tc.criteria || 'goal_achievement',
     bot_url: tc.bot_url || null,
     status: 'pending',
     error: '',
@@ -208,11 +208,11 @@ export function renderEval() {
 
     // Map criteria ID to display name
     const criteriaNames = {
-      'standard': 'Chuẩn',
-      'strict': 'Nghiêm ngặt',
-      'speed-focused': 'Tốc độ',
-      'content-only': 'Nội dung',
-      'ux-focused': 'Trải nghiệm'
+      'goal_achievement': 'Đạt mục tiêu',
+      'semantic_correctness': 'Đúng nghĩa & intent',
+      'conversation_quality': 'Chất lượng hội thoại',
+      'context_consistency': 'Tính nhất quán',
+      'safety_compliance': 'An toàn & Tuân thủ'
     };
     const criteriaDisplay = criteriaNames[tc.criteria] || tc.criteria;
 
@@ -350,10 +350,30 @@ function renderActual(turn, tcStatus) {
   if (tcStatus === 'error' && turn.actual === null) return `<span class="actual-error">❌ Lỗi</span>`;
   if (turn.actual === null) return '<span class="cell-empty">—</span>';
 
+  const actualText = getActualContent(turn.actual);
   const badge = turn.action
     ? `<span class="action-badge action-${turn.action}">${turn.action}</span>`
     : '';
-  return `<div class="actual-text">${turn.actual}</div>${badge}`;
+  return `<div class="actual-text">${actualText}</div>${badge}`;
+}
+
+function getActualContent(actual) {
+  if (actual && typeof actual === 'object') {
+    return actual.content ?? actual.answer ?? actual.message ?? JSON.stringify(actual);
+  }
+
+  if (typeof actual === 'string') {
+    try {
+      const parsed = JSON.parse(actual);
+      if (parsed && typeof parsed === 'object') {
+        return parsed.content ?? parsed.answer ?? parsed.message ?? actual;
+      }
+    } catch {
+      // Keep plain text responses unchanged.
+    }
+  }
+
+  return actual;
 }
 
 function renderTime(turn, tcStatus) {

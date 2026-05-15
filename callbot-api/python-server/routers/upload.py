@@ -103,7 +103,7 @@ def parse_excel_with_merged_cells(file_content: bytes):
         expected = str(expected).strip()
         required_keywords = str(required_keywords).strip() if required_keywords and str(required_keywords).strip() else None
         forbidden_keywords = str(forbidden_keywords).strip() if forbidden_keywords and str(forbidden_keywords).strip() else None
-        criteria = str(criteria).strip().lower() if criteria else "standard"
+        criteria = str(criteria).strip().lower() if criteria else "goal_achievement"
         bot_url = str(bot_url).strip() if bot_url and str(bot_url).strip() else None
         
         # Group by code
@@ -173,7 +173,7 @@ async def upload_excel(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="File Excel không có dữ liệu testcase hợp lệ")
         
         # Validate criteria
-        valid_criteria = ["standard", "strict", "speed-focused", "content-only", "ux-focused"]
+        valid_criteria = ["goal_achievement", "semantic_correctness", "conversation_quality", "context_consistency", "safety_compliance"]
         for tc in testcases_data:
             if tc["criteria"] not in valid_criteria:
                 raise HTTPException(

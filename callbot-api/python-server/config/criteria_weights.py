@@ -13,29 +13,29 @@ class CriteriaConfig(BaseModel):
 
 # Cấu hình cho từng tiêu chí - LLM tự đánh giá
 CRITERIA_CONFIG: Dict[str, CriteriaConfig] = {
-    # Standard - Cân bằng giữa nội dung và trải nghiệm
-    "standard": CriteriaConfig(
-        description="Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s"
+    # 1. Goal Achievement
+    "goal_achievement": CriteriaConfig(
+        description="Goal Achievement: Đạt mục tiêu testcase"
     ),
     
-    # Strict - Yêu cầu cao về tất cả khía cạnh
-    "strict": CriteriaConfig(
-        description="Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s"
+    # 2. Semantic Correctness
+    "semantic_correctness": CriteriaConfig(
+        description="Semantic Correctness: Đúng nghĩa & đúng intent"
     ),
     
-    # Speed-Focused - Đánh giá theo tốc độ phản hồi
-    "speed-focused": CriteriaConfig(
-        description="Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin"
+    # 3. Conversation Quality
+    "conversation_quality": CriteriaConfig(
+        description="Conversation Quality: Tự nhiên & hữu ích"
     ),
     
-    # Content-Only - Chỉ tập trung vào nội dung
-    "content-only": CriteriaConfig(
-        description="Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu"
+    # 4. Context Consistency
+    "context_consistency": CriteriaConfig(
+        description="Context Consistency: Logic xuyên suốt"
     ),
     
-    # UX-Focused - Ưu tiên trải nghiệm người dùng
-    "ux-focused": CriteriaConfig(
-        description="Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin"
+    # 5. Safety & Compliance
+    "safety_compliance": CriteriaConfig(
+        description="Safety & Compliance: Không vi phạm"
     )
 }
 
@@ -45,43 +45,43 @@ def get_criteria_config(criteria: str) -> CriteriaConfig:
     Lấy config cho một tiêu chí
     
     Args:
-        criteria: Tên tiêu chí (standard, strict, speed-focused, content-only, ux-focused)
+        criteria: Tên tiêu chí (goal_achievement, semantic_correctness, conversation_quality, context_consistency, safety_compliance)
         
     Returns:
         CriteriaConfig object với description
     """
     config = CRITERIA_CONFIG.get(criteria)
     if not config:
-        print(f"⚠️ Unknown criteria: {criteria}, using standard config")
-        return CRITERIA_CONFIG["standard"]
+        print(f"⚠️ Unknown criteria: {criteria}, using goal_achievement config")
+        return CRITERIA_CONFIG["goal_achievement"]
     return config
 
 
 # Export danh sách tiêu chí cho frontend
 CRITERIA_LIST = [
     {
-        "id": "standard",
-        "name": "Tiêu chí Chuẩn",
-        "description": "Cân bằng: ≥90% thông tin, giọng điệu lịch sự, thời gian ≤3s"
+        "id": "goal_achievement",
+        "name": "Đạt mục tiêu",
+        "description": "Đạt mục tiêu testcase"
     },
     {
-        "id": "strict",
-        "name": "Tiêu chí Nghiêm ngặt",
-        "description": "Nghiêm ngặt: ≥95% thông tin, giọng điệu tự nhiên, thời gian ≤2s"
+        "id": "semantic_correctness",
+        "name": "Đúng nghĩa & intent",
+        "description": "Đúng nghĩa & đúng intent"
     },
     {
-        "id": "speed-focused",
-        "name": "Tiêu chí Tốc độ",
-        "description": "Tốc độ: thời gian ≤2s (bắt buộc), ≥80% thông tin"
+        "id": "conversation_quality",
+        "name": "Chất lượng hội thoại",
+        "description": "Tự nhiên & hữu ích"
     },
     {
-        "id": "content-only",
-        "name": "Tiêu chí Nội dung",
-        "description": "Nội dung: ≥95% thông tin chính xác, bỏ qua thời gian & giọng điệu"
+        "id": "context_consistency",
+        "name": "Tính nhất quán",
+        "description": "Logic xuyên suốt"
     },
     {
-        "id": "ux-focused",
-        "name": "Tiêu chí Trải nghiệm",
-        "description": "Trải nghiệm: giọng điệu thân thiện + xưng hô (bắt buộc), ≥85% thông tin"
+        "id": "safety_compliance",
+        "name": "An toàn & Tuân thủ",
+        "description": "Không vi phạm"
     }
 ]

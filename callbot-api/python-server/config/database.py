@@ -66,7 +66,7 @@ def init_db():
             tone_note TEXT,
             time_verdict TEXT,
             time_note TEXT,
-            criteria TEXT DEFAULT 'standard',
+            criteria TEXT DEFAULT 'goal_achievement',
             error TEXT,
             executor TEXT,
             run_at DATETIME DEFAULT (datetime('now', 'localtime')),

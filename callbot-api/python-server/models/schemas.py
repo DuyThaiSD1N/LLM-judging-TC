@@ -25,7 +25,7 @@ class TestcaseBase(BaseModel):
     name: str
     group: str = "GENERAL"  # Simplified: no longer restricted to A/B/C/D
     turns: List[Turn]
-    criteria: str = "standard"
+    criteria: str = "goal_achievement"
     bot_url: Optional[str] = None  # URL bot riêng cho testcase này
     executor: Optional[str] = None  # Người thực hiện testcase
 
@@ -161,7 +161,7 @@ class RunSingleRequest(BaseModel):
     turns: Optional[List[Turn]] = None
     question: Optional[str] = None
     expected: Optional[str] = None
-    criteria: str = "standard"
+    criteria: str = "goal_achievement"
     bot_url: Optional[str] = None  # URL bot tùy chỉnh, None = dùng default
     executor: Optional[str] = None  # Người thực hiện testcase
 

@@ -15,7 +15,7 @@ class History:
         testcase_name: str,
         testcase_group: str,
         turn_results: List[Dict[str, Any]],
-        criteria: str = "standard",
+        criteria: str = "goal_achievement",
         executor: Optional[str] = None  # NEW: Người thực hiện
     ):
         """
