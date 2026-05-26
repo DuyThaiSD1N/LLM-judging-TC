@@ -23,7 +23,7 @@ class TestcaseBase(BaseModel):
     """Base schema cho testcase (SIMPLIFIED - group is optional)"""
     code: str
     name: str
-    group: str = "GENERAL"  # Simplified: no longer restricted to A/B/C/D
+    group: str = "GENERAL"  # Metadata only; judge no longer branches by group
     turns: List[Turn]
     criteria: str = "goal_achievement"
     bot_url: Optional[str] = None  # URL bot riêng cho testcase này
@@ -62,12 +62,12 @@ class ErrorDetail(BaseModel):
 
 class JudgeResult(BaseModel):
     """
-    Kết quả đánh giá từ LLM Judge - LLM tự đánh giá với Chain-of-Thought
+    Kết quả đánh giá từ LLM Judge.
     """
-    # Chain-of-Thought reasoning (bắt buộc)
+    # Short evidence-based rationale
     reasoning: str = Field(
         default="",
-        description="Toàn bộ suy luận CoT trước khi ra verdict"
+        description="Rationale ngắn gọn dựa trên bằng chứng"
     )
 
     # Main verdict
@@ -134,7 +134,7 @@ class TurnResult(BaseModel):
     action: str = ""
     response_time_ms: Optional[int] = None
     verdict: Optional[str] = None
-    reasoning: str = ""          # CoT reasoning từ LLM Judge
+    reasoning: str = ""          # Short rationale từ LLM Judge
     error_desc: str = ""
     suggestion: str = ""
     suggested_response: str = ""

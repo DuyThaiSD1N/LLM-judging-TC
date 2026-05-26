@@ -409,7 +409,7 @@ async def run_testcase(
     Args:
         code: Mã testcase (cũng là conversation_id)
         name: Tên testcase
-        group: Nhóm (A/B/C/D)
+        group: Nhóm testcase/metadata
         turns: Danh sách turns (sẽ được gửi tuần tự trong cùng conversation)
         criteria: Tiêu chí đánh giá
         bot_url: URL bot tùy chỉnh (None = dùng default)
