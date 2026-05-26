@@ -76,6 +76,44 @@ VÍ DỤ PHÂN TÍCH NGỮ NGHĨA:
   Kết luận: ✓ (tương đương)
 """
 
+EVALUATION_RUBRIC = """
+RUBRIC ĐÁNH GIÁ & GHI LỖI:
+- Kỳ vọng là chuẩn chấm chính. Chỉ ghi lỗi khi chỉ ra được Kỳ vọng yêu cầu gì và Thực tế thiếu/sai ở đâu.
+- PASSED nếu câu trả lời đáp ứng đúng các ý trọng yếu của Kỳ vọng, dù có khác cách diễn đạt hoặc có thêm thông tin phụ không gây sai lệch.
+- FAILED chỉ khi có ít nhất một lỗi Critical/Major:
+  * Critical: sai nghiệp vụ trọng yếu, sai cơ quan/nơi nộp/thời hạn/điều kiện quan trọng, hoặc đưa thông tin khiến user làm sai.
+  * Major: thiếu ý trọng yếu trong Kỳ vọng khiến user chưa đủ thông tin để thực hiện.
+  * Minor: diễn đạt chưa rõ, hơi dài, thừa thông tin phụ, hoặc thiếu ý phụ nhưng không làm sai mục tiêu.
+- KHÔNG fail chỉ vì câu trả lời có thông tin bổ sung nếu thông tin đó không mâu thuẫn với Kỳ vọng và không gây hiểu sai.
+- KHÔNG fail chỉ vì câu trả lời không đủ "ngắn gọn" nếu nội dung đúng và dễ hiểu; ghi vào tone_note/chất lượng hội thoại nếu thật sự ảnh hưởng trải nghiệm.
+- KHÔNG ghi lỗi giọng điệu nếu vấn đề thực chất là thiếu/sai nội dung. Lỗi nội dung phải nằm trong error_desc/suggestion, không đẩy sang tone_note.
+- Nếu lỗi chưa chắc chắn hoặc Kỳ vọng mơ hồ, đặt confidence_level thấp và needs_human_review=true thay vì khẳng định sai.
+- error_desc phải nêu lỗi cụ thể theo cấu trúc: "Kỳ vọng yêu cầu ..., nhưng câu trả lời thực tế ...; điều này khiến ...".
+- suggestion phải sửa đúng lỗi chính, không phê bình chung chung.
+"""
+
+DETERMINISTIC_VERDICT_RULES = """
+QUY TẮC RA VERDICT BẮT BUỘC:
+1. Trước khi chọn verdict, tạo danh sách errors top-level. Mỗi lỗi phải có severity là Critical, Major hoặc Minor.
+2. Nếu có ít nhất một lỗi Critical hoặc Major trong errors => verdict PHẢI là "FAILED".
+3. Nếu không có lỗi Critical/Major, chỉ có lỗi Minor hoặc không có lỗi => verdict PHẢI là "PASSED".
+4. Nếu verdict là "FAILED" nhưng errors rỗng hoặc chỉ có Minor thì output KHÔNG HỢP LỆ. Trong trường hợp này phải đổi verdict thành "PASSED" hoặc đặt needs_human_review=true nếu thật sự chưa chắc.
+5. Nếu verdict là "PASSED" thì error_desc="", suggestion="", suggested_response="" và errors chỉ được rỗng hoặc chỉ chứa Minor không ảnh hưởng mục tiêu.
+6. Không dùng tone_note, time_note hoặc độ dài câu trả lời làm lý do FAILED nội dung. Các mục này chỉ là ghi chú phụ.
+7. Với cùng một Kỳ vọng và Thực tế, phải áp dụng cùng quy tắc trên để ra cùng verdict, không đổi tiêu chuẩn giữa các lần đánh giá.
+"""
+
+SUGGESTED_RESPONSE_GROUNDING = """
+QUY TẮC NGUỒN DỮ LIỆU CHO SUGGESTED_RESPONSE:
+- suggested_response PHẢI được viết dựa trên Kỳ vọng, required_keywords/forbidden_keywords, và knowledge base nếu có.
+- KHÔNG được tự bịa thêm số liệu, thời hạn, lệ phí, cơ quan xử lý, điều kiện, hoặc trình tự nếu các thông tin đó không có trong Kỳ vọng/knowledge base.
+- KHÔNG copy lại phần "Thực tế" đang bị đánh giá sai/mơ hồ để làm suggested_response.
+- Nếu một mốc thời gian/số liệu trong Thực tế đang là nguyên nhân bị FAILED, chỉ được dùng lại mốc đó khi nó cũng xuất hiện rõ trong Kỳ vọng hoặc knowledge base.
+- Nếu Kỳ vọng chỉ yêu cầu một mốc thời gian tổng thể, suggested_response chỉ nêu mốc đó; không thêm các mốc phụ như "05 ngày, 20 ngày, 05 ngày" nếu Kỳ vọng không giải thích rõ từng mốc.
+- Nếu Kỳ vọng có nhiều trường hợp thời gian khác nhau, suggested_response phải gắn từng mốc với đúng điều kiện tương ứng, ví dụ: "trường hợp A: X ngày; trường hợp B: Y ngày".
+- Nếu không đủ dữ liệu để viết câu trả lời đúng hoàn chỉnh, đặt needs_human_review=true và trong suggested_response chỉ viết phần chắc chắn từ Kỳ vọng, không suy đoán phần còn thiếu.
+"""
+
 # ═══════════════════════════════════════════════════════════
 # FEW-SHOT EXAMPLES - Phân tích ngữ nghĩa
 # ═══════════════════════════════════════════════════════════
@@ -122,7 +160,7 @@ PHÂN TÍCH NGỮ NGHĨA:
 2. Kiểm tra hoàn thành: Response có hoàn thành mục tiêu không?
 3. Kiểm tra hướng dẫn: Response có dẫn user tới bước tiếp theo không?
 4. Kiểm tra hiệu quả: Response có giúp user đạt mục tiêu không?
-5. Phân tích tính hiệu suất: Phản hồi có nhanh không?
+5. Không dùng thời gian phản hồi để quyết định PASSED/FAILED nội dung; thời gian chỉ ghi ở time_verdict/time_note.
 
 PASSED: Hoàn thành mục tiêu, dẫn user tiếp theo, hiệu quả cao
 FAILED: Không hoàn thành mục tiêu, không dẫn user, hoặc không hiệu quả"""
@@ -258,7 +296,13 @@ def create_advanced_judge_prompt(
 
 {GROUNDING_REQUIREMENT}
 
+{EVALUATION_RUBRIC}
+
+{DETERMINISTIC_VERDICT_RULES}
+
 {FEW_SHOT_EXAMPLES}
+
+{SUGGESTED_RESPONSE_GROUNDING}
 
 {criteria_config['system_instruction']}
 {knowledge_section}
@@ -320,6 +364,8 @@ HƯỚNG DẪN PHÂN TÍCH CHI TIẾT (8 BƯỚC)
 
 8. KẾT LUẬN (Conclusion):
    - Dựa trên phân tích trên, verdict là gì? (PASSED/FAILED)
+   - Nếu FAILED, lỗi chính là Critical hay Major? Có bằng chứng cụ thể từ Kỳ vọng và Thực tế không?
+   - Nếu chỉ có lỗi Minor hoặc diễn đạt chưa tối ưu, cân nhắc PASSED với tone_note/suggestion nhẹ thay vì FAILED
    - Mức độ tự tin là bao nhiêu? (0.0-1.0)
    - Tại sao có mức độ tự tin này? (giải thích)
    - Có cần human review không? (true/false + lý do)
@@ -385,10 +431,17 @@ OUTPUT (JSON - CHI TIẾT)
   "confidence_level": 0.0-1.0,
   "needs_human_review": true/false,
   "confidence_reason": "Lý do về độ tự tin (2-3 câu chi tiết)",
+  "errors": [
+    {{
+      "description": "Mô tả lỗi cụ thể; chỉ ghi lỗi có bằng chứng từ Kỳ vọng và Thực tế",
+      "severity": "Critical/Major/Minor",
+      "quote": "trích dẫn từ response"
+    }}
+  ],
   
   "error_desc": "Mô tả lỗi chi tiết (nếu FAILED, nếu PASSED để trống)",
-  "suggestion": "Gợi ý cải thiện cụ thể (nếu FAILED, nếu PASSED để trống)",
-  "suggested_response": "Response đã sửa (nếu FAILED, nếu PASSED để trống)",
+  "suggestion": "Gợi ý cải thiện cụ thể, chi tiết, nêu rõ cần bổ sung/sửa những ý nào (nếu FAILED, nếu PASSED để trống)",
+  "suggested_response": "Response đã sửa hoàn chỉnh, đủ ý, có thể dùng trực tiếp cho chatbot (nếu FAILED, nếu PASSED để trống)",
   
   "tone_note": "Nhận xét giọng điệu (nếu có vấn đề, nếu tốt để trống)",
   "time_verdict": "good/ok/slow",
@@ -448,21 +501,42 @@ ERROR_DESC:
 - Mô tả tự nhiên, cụ thể, có trích dẫn
 - KHÔNG liệt kê "thiếu X/Y"
 - Mô tả tác động của lỗi
+- Chỉ ghi lỗi nội dung thực sự dựa trên Kỳ vọng; không ghi nhận xét mơ hồ như "chưa rõ ràng" nếu không chỉ ra thiếu/sai thông tin nào
+- Không phóng đại lỗi Minor thành FAILED
+- Nếu verdict là FAILED, error_desc phải tương ứng với ít nhất một lỗi Critical/Major trong errors
+- Nếu không tìm được lỗi Critical/Major, để error_desc trống và chọn PASSED hoặc needs_human_review=true
 
 SUGGESTION:
 - Gợi ý cụ thể cách sửa
 - Có thể copy-paste
 - Giải thích tại sao nên sửa như vậy
+- PHẢI nêu rõ từng nhóm thông tin cần bổ sung/sửa dựa trên Kỳ vọng và lỗi đã phát hiện
+- KHÔNG viết chung chung như "bổ sung thông tin còn thiếu" nếu không chỉ rõ thiếu gì
+- Nếu thiếu nhiều ý, trình bày thành một câu/đoạn có đủ các ý chính: nội dung cần thêm, nội dung cần sửa, và nội dung cần tránh
+- Nếu verdict là PASSED, suggestion phải để trống; không đưa khuyến nghị cải thiện nhỏ vào suggestion
 
 SUGGESTED_RESPONSE:
 - Response hoàn chỉnh, có thể copy-paste trực tiếp
 - Áp dụng tất cả gợi ý
 - Đảm bảo đúng yêu cầu
+- PHẢI là câu trả lời thay thế đầy đủ cho chatbot, không phải chỉ là ghi chú hoặc dàn ý
+- PHẢI bao phủ tất cả ý trọng yếu trong Kỳ vọng, bao gồm giấy tờ/hồ sơ, nơi nộp, trình tự, lệ phí, thời gian xử lý, điều kiện, hoặc cảnh báo nếu các ý này xuất hiện trong Kỳ vọng
+- Nếu FAILED do thiếu thông tin, suggested_response phải bổ sung đầy đủ thông tin thiếu, không được chỉ nói "cần bổ sung..."
+- Nếu FAILED do sai thông tin, suggested_response phải thay bằng thông tin đúng và loại bỏ phần sai
+- Nếu FAILED do câu trả lời thực tế mơ hồ/sai về thời gian, suggested_response phải viết lại thời gian rõ ràng theo Kỳ vọng: mỗi mốc thời gian phải có điều kiện áp dụng; không liệt kê nhiều số ngày liên tiếp mà không giải thích
+- KHÔNG được lấy nguyên văn câu trả lời thực tế làm suggested_response nếu câu trả lời đó đang bị đánh giá là sai, thiếu hoặc mơ hồ
+- KHÔNG được thêm câu hỏi follow-up như "bạn cần thêm thông tin không?" nếu Kỳ vọng không yêu cầu; tập trung sửa đúng phần bị lỗi
+- Độ dài khuyến nghị khi FAILED: 3-6 câu hoặc 1 đoạn đầy đủ ý; dài hơn nếu Kỳ vọng có nhiều bước/giấy tờ
+- Văn phong phải giống câu trả lời chatbot có thể gửi trực tiếp cho người dân: tự nhiên, rõ ràng, lịch sự, không quá cụt
+- Nếu verdict là PASSED, suggested_response phải để trống; không viết lại câu trả lời khi không có lỗi Critical/Major
 
 TONE_NOTE:
 - CHỈ ghi vấn đề, KHÔNG khen ngợi
 - Mô tả cụ thể vấn đề giọng điệu
 - Gợi ý cách cải thiện
+- Chỉ dùng cho vấn đề giọng điệu/hội thoại thật sự: cộc lốc, thiếu lịch sự, xưng hô sai, khó nghe, quá máy móc
+- KHÔNG dùng tone_note để nói về lỗi nội dung, lỗi thời gian xử lý, hoặc thiếu thông tin nghiệp vụ
+- Nếu không có vấn đề giọng điệu rõ ràng, để trống
 
 TIME_NOTE:
 - Mô tả cụ thể về thời gian

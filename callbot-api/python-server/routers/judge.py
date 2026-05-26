@@ -9,20 +9,6 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 TIME_GOOD = 2000  # ms
 TIME_OK   = 3000  # ms
 
-GROUP_DESC = {
-    "A": "Hỏi đầy đủ thông tin — bot phải cung cấp đúng và đủ thông tin về thủ tục hành chính.",
-    "B": (
-        "Hỏi ngoại lệ / ngoài phạm vi — bot phải từ chối và chuyển hướng về hành chính công. "
-        "Cách từ chối mặc định HỢP LỆ: KHÔNG trả lời nội dung ngoài phạm vi, sau đó hỏi lại "
-        "người dùng có cần hỗ trợ thủ tục hành chính không. "
-        'Ví dụ hợp lệ: "Dạ em rất sẵn lòng a, nhưng em xin phép hỗ trợ các nội dung hành chính '
-        'công thôi, anh cần em tra cứu thủ tục nào không ạ?" '
-        "Đây là hành vi ĐÚNG — phải chấm PASSED nếu bot từ chối và chuyển hướng như vậy."
-    ),
-    "C": "Hỏi chuyển topic đột ngột — bot phải xử lý chuyển chủ đề hợp lý, không bị lạc.",
-    "D": "Hỏi tài liệu không có trong CSDL — bot phải thừa nhận không có thông tin và hướng dẫn đến văn phòng 1 cửa, tuyệt đối không bịa.",
-}
-
 GREETING_PATTERNS = [
     re.compile(r"em chào anh", re.IGNORECASE),
     re.compile(r"em chào chị", re.IGNORECASE),
@@ -52,15 +38,11 @@ async def judge_one(question: str, expected: str, actual: str, group: str, respo
 
     time_info  = classify_time(response_time_ms)
     time_label = f"{response_time_ms}ms ({time_info['label']})"
-    group_desc = GROUP_DESC.get(group, "")
 
     prompt = f"""Bạn là chuyên gia kiểm thử chatbot hành chính công.
 Nhiệm vụ: đánh giá toàn diện câu trả lời của chatbot theo 3 tiêu chí.
 
 ---
-NHÓM KỊCH BẢN: {group}
-MÔ TẢ NHÓM: {group_desc}
-
 CÂU HỎI CỦA USER:
 "{question}"
 
@@ -77,14 +59,11 @@ THỜI GIAN PHẢN HỒI: {time_label}
 
 PASSED khi:
 - Câu trả lời truyền đạt đúng và đủ thông tin cốt lõi so với kỳ vọng (không cần giống từng chữ)
-- Với nhóm B: bot từ chối nội dung ngoài phạm vi VÀ chuyển hướng về hành chính công → PASSED
 
 FAILED khi:
 - Thiếu thông tin quan trọng mà kỳ vọng có
 - Cung cấp thông tin sai lệch hoặc mâu thuẫn với kỳ vọng
-- Bịa thông tin không có cơ sở — áp dụng cho TẤT CẢ nhóm
-- Với nhóm B: bot trả lời nội dung ngoài phạm vi thay vì từ chối → FAILED
-- Với nhóm D: bot bịa thông tin thay vì hướng dẫn đến văn phòng 1 cửa → FAILED
+- Bịa thông tin không có cơ sở
 
 ## TIÊU CHÍ 2 — ĐỘ TỰ NHIÊN & GIỌNG ĐIỆU (dành cho voicebot)
 - Xưng hô lịch sự, đúng mực (anh/chị, dạ vâng...)

@@ -147,7 +147,7 @@ class JudgeAgent:
     def __init__(self):
         self.llm = ChatOpenAI(
             model="gpt-4o-mini",
-            temperature=0.1,
+            temperature=0,
             api_key=os.getenv("OPENAI_API_KEY"),
             # Bắt buộc trả về JSON object — tránh LLM thêm text thừa
             model_kwargs={"response_format": {"type": "json_object"}}
@@ -210,8 +210,25 @@ class JudgeAgent:
                 # Parse JSON an toàn
                 result = _safe_parse_json(raw_content)
                 
-                # Get verdict from LLM
+                # Normalize errors from both the current top-level schema and older nested schema.
+                errors = result.get("errors") or result.get("accuracy_analysis", {}).get("errors", [])
+                if not isinstance(errors, list):
+                    errors = []
+                severe_errors = [
+                    e for e in errors
+                    if isinstance(e, dict) and e.get("severity") in ("Critical", "Major")
+                ]
+
+                # Get and validate verdict from LLM
                 verdict = result.get("verdict", "FAILED")
+                if verdict not in ("PASSED", "FAILED"):
+                    verdict = "FAILED"
+                if verdict == "FAILED" and not severe_errors:
+                    verdict = "PASSED"
+                    result["needs_human_review"] = True
+                    result["confidence_reason"] = (
+                        "LLM returned FAILED without Critical/Major evidence; normalized to PASSED for consistency."
+                    )
                 
                 # Đảm bảo consistency: PASSED không có error_desc
                 error_desc = result.get("error_desc", "")
@@ -229,11 +246,10 @@ class JudgeAgent:
                     suggestion = ""
                     suggested_response = ""
                 elif verdict == "FAILED":
-                    # FAILED phải có error_desc và suggestion chi tiết
-                    # Nếu LLM không điền, lấy từ reasoning hoặc errors
+                    # FAILED phải có error_desc và suggestion chi tiết.
+                    # Nếu LLM không điền, lấy từ rationale hoặc errors.
                     if not error_desc:
                         reasoning = result.get("reasoning", "")
-                        errors = result.get("errors", [])
                         if errors:
                             # Ghép từ errors array
                             error_desc = " | ".join(
@@ -242,8 +258,7 @@ class JudgeAgent:
                             )
                             error_desc = _clean_forbidden_words(error_desc)
                         elif reasoning:
-                            # Lấy phần kết luận từ reasoning
-                            error_desc = reasoning.split("[CoT-6]")[-1].strip() if "[CoT-6]" in reasoning else reasoning[-300:]
+                            error_desc = reasoning[-300:].strip()
                             error_desc = _clean_forbidden_words(error_desc)
                         else:
                             error_desc = "LLM không cung cấp lý do — cần human review"
@@ -261,6 +276,10 @@ class JudgeAgent:
                 tone_note = result.get("tone_note", "")
                 tone_note = _clean_tone_note(tone_note)
                 
+                time_verdict = result.get("time_verdict", time_info["level"])
+                if time_verdict not in ("good", "ok", "slow"):
+                    time_verdict = time_info["level"]
+
                 # Logging for monitoring
                 print(
                     f"📊 Judge Result [{criteria}]: result={verdict}, "
@@ -272,14 +291,14 @@ class JudgeAgent:
                     # Main verdict
                     "verdict": verdict,
 
-                    # Chain-of-Thought reasoning
+                    # Short evidence-based rationale
                     "reasoning": result.get("reasoning", ""),
 
                     # Confidence fields
                     "confidence_level": confidence_level,
                     "needs_human_review": needs_human_review,
                     "confidence_reason": result.get("confidence_reason", ""),
-                    "errors": result.get("errors", []),
+                    "errors": errors,
 
                     # Error details
                     "error_desc": error_desc,
@@ -288,7 +307,7 @@ class JudgeAgent:
 
                     # Notes
                     "tone_note": tone_note,
-                    "time_verdict": result.get("time_verdict", time_info["level"]),
+                    "time_verdict": time_verdict,
                     "time_note": result.get("time_note", time_label),
                 }
                 
